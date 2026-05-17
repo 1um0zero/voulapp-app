@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Linking } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert } from 'react-native'
 import { api } from '../lib/api'
 import { useLocalStorage } from '../lib/useLocalStorage'
 
@@ -23,7 +23,6 @@ export default function PlanosScreen() {
         Linking.openURL(data.sandbox_url || data.checkout_url)
       }
     } catch (e) {
-      const { Alert } = require('react-native')
       Alert.alert('Erro', e.message)
     }
     setPagando(null)
