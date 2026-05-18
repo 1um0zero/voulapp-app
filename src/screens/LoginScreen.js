@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../contexts/AuthContext'
+import { colors, radius, text } from '../lib/theme'
 
 export default function LoginScreen({ navigation }) {
   const { entrar } = useAuth()
@@ -8,6 +10,7 @@ export default function LoginScreen({ navigation }) {
   const [senha, setSenha]   = useState('')
   const [erro, setErro]     = useState('')
   const [loading, setLoading] = useState(false)
+  const [verSenha, setVerSenha] = useState(false)
 
   const login = async () => {
     setErro(''); setLoading(true)
@@ -18,31 +21,47 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar barStyle="light-content" />
+
+      <TouchableOpacity style={s.back} onPress={() => navigation.goBack()}>
+        <Ionicons name="arrow-back" size={22} color={colors.textMed} />
+      </TouchableOpacity>
+
       <View style={s.inner}>
-        <View style={s.logo}>
-          <Text style={s.logoText}>v</Text>
+        <Text style={s.titulo}>Bem-vindo de volta</Text>
+        <Text style={s.sub}>Entra na tua conta para continuar</Text>
+
+        {!!erro && (
+          <View style={s.erroBox}>
+            <Ionicons name="alert-circle" size={16} color={colors.red} />
+            <Text style={s.erroTxt}>{erro}</Text>
+          </View>
+        )}
+
+        <View style={s.campos}>
+          <View style={s.campo}>
+            <Ionicons name="mail-outline" size={18} color={colors.textDim} style={s.campoIcon} />
+            <TextInput style={s.input} placeholder="Email" placeholderTextColor={colors.textDim}
+              value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          </View>
+
+          <View style={s.campo}>
+            <Ionicons name="lock-closed-outline" size={18} color={colors.textDim} style={s.campoIcon} />
+            <TextInput style={s.input} placeholder="Senha" placeholderTextColor={colors.textDim}
+              value={senha} onChangeText={setSenha} secureTextEntry={!verSenha} />
+            <TouchableOpacity onPress={() => setVerSenha(v => !v)} style={s.campoIconDir}>
+              <Ionicons name={verSenha ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textDim} />
+            </TouchableOpacity>
+          </View>
         </View>
-        <Text style={s.titulo}>voulapp</Text>
-        <Text style={s.sub}>Entra na tua conta</Text>
 
-        {!!erro && <Text style={s.erro}>{erro}</Text>}
-
-        <TextInput
-          style={s.input} placeholder="Email" placeholderTextColor="#64748b"
-          value={email} onChangeText={setEmail}
-          keyboardType="email-address" autoCapitalize="none"
-        />
-        <TextInput
-          style={s.input} placeholder="Senha" placeholderTextColor="#64748b"
-          value={senha} onChangeText={setSenha} secureTextEntry
-        />
-
-        <TouchableOpacity style={s.btn} onPress={login} disabled={loading}>
+        <TouchableOpacity style={[s.btn, loading && s.btnDis]} onPress={login} disabled={loading}>
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnTxt}>Entrar</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Registar')}>
-          <Text style={s.link}>Não tens conta? <Text style={s.linkDest}>Cria uma agora</Text></Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Registar')} style={s.linkRow}>
+          <Text style={s.linkTxt}>Não tens conta? </Text>
+          <Text style={s.link}>Cria uma agora</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -50,16 +69,22 @@ export default function LoginScreen({ navigation }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#020617' },
-  inner:  { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  logo:   { width: 56, height: 56, backgroundColor: '#6366f1', borderRadius: 16, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 },
-  logoText: { color: '#fff', fontSize: 22, fontWeight: '700' },
-  titulo: { fontSize: 28, fontWeight: '700', color: '#f1f5f9', textAlign: 'center', marginBottom: 4 },
-  sub:    { fontSize: 14, color: '#94a3b8', textAlign: 'center', marginBottom: 32 },
-  erro:   { backgroundColor: '#450a0a', color: '#f87171', padding: 12, borderRadius: 12, marginBottom: 12, fontSize: 14, textAlign: 'center' },
-  input:  { backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155', borderRadius: 14, padding: 14, color: '#f1f5f9', fontSize: 15, marginBottom: 12 },
-  btn:    { backgroundColor: '#6366f1', borderRadius: 14, padding: 16, alignItems: 'center', marginBottom: 20, marginTop: 4 },
-  btnTxt: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  link:   { textAlign: 'center', color: '#64748b', fontSize: 14 },
-  linkDest: { color: '#818cf8', fontWeight: '600' },
+  container:   { flex: 1, backgroundColor: colors.bg },
+  back:        { position: 'absolute', top: 56, left: 24, zIndex: 10, padding: 4 },
+  inner:       { flex: 1, justifyContent: 'center', paddingHorizontal: 28, paddingTop: 40 },
+  titulo:      { ...text.h1, marginBottom: 6 },
+  sub:         { ...text.body, marginBottom: 32 },
+  erroBox:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.redDim, borderWidth: 1, borderColor: colors.red + '40', borderRadius: radius.md, padding: 12, marginBottom: 16 },
+  erroTxt:     { color: colors.red, fontSize: 13, flex: 1 },
+  campos:      { gap: 12, marginBottom: 24 },
+  campo:       { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 14 },
+  campoIcon:   { marginRight: 10 },
+  campoIconDir:{ padding: 4 },
+  input:       { flex: 1, paddingVertical: 15, color: colors.text, fontSize: 15 },
+  btn:         { backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 16, alignItems: 'center', shadowColor: colors.accent, shadowOffset: {width:0,height:4}, shadowOpacity: 0.3, shadowRadius: 8 },
+  btnDis:      { opacity: 0.6 },
+  btnTxt:      { color: '#fff', fontWeight: '700', fontSize: 16, letterSpacing: 0.3 },
+  linkRow:     { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
+  linkTxt:     { color: colors.textDim, fontSize: 14 },
+  link:        { color: colors.accent, fontSize: 14, fontWeight: '600' },
 })

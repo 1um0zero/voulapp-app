@@ -1,15 +1,56 @@
 import { useState, useEffect } from 'react'
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Platform, StatusBar, SafeAreaView } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { api } from '../lib/api'
 import { useLocalStorage } from '../lib/useLocalStorage'
+import { colors, radius, text } from '../lib/theme'
 
 const hoje = () => new Date().toISOString().split('T')[0]
 const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
-function formatarData(iso) {
-  const d = new Date(iso + 'T12:00:00')
-  return `${DIAS[d.getDay()]}, ${d.getDate()} ${MESES[d.getMonth()]}`
+function CalendarioSemanal({ dataSel, onChange }) {
+  const [offset, setOffset] = useState(0)
+  const base = new Date()
+  base.setDate(base.getDate() - base.getDay() + offset * 7)
+
+  const dias = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(base)
+    d.setDate(base.getDate() + i)
+    return d
+  })
+
+  const hojeISO = hoje()
+  const mes = MESES[dias[3].getMonth()]
+
+  return (
+    <View style={s.cal}>
+      <View style={s.calHeader}>
+        <TouchableOpacity onPress={() => offset > 0 && setOffset(o => o - 1)}
+          style={[s.calArrow, offset === 0 && s.calArrowDis]}>
+          <Ionicons name="chevron-back" size={18} color={offset === 0 ? colors.textDim : colors.textMed} />
+        </TouchableOpacity>
+        <Text style={s.calMes}>{mes} {dias[3].getFullYear()}</Text>
+        <TouchableOpacity onPress={() => setOffset(o => o + 1)} style={s.calArrow}>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMed} />
+        </TouchableOpacity>
+      </View>
+      <View style={s.calDias}>
+        {dias.map(d => {
+          const iso = d.toISOString().split('T')[0]
+          const sel = iso === dataSel
+          const pass = iso < hojeISO
+          return (
+            <TouchableOpacity key={iso} onPress={() => !pass && onChange(iso)} disabled={pass}
+              style={[s.calDia, sel && s.calDiaSel, pass && s.calDiaPass]}>
+              <Text style={[s.calDiaNome, sel && s.calDiaNomeSel, pass && s.calDiaNomePass]}>{DIAS[d.getDay()]}</Text>
+              <Text style={[s.calDiaNum, sel && s.calDiaNumSel, pass && s.calDiaNomePass]}>{d.getDate()}</Text>
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+    </View>
+  )
 }
 
 export default function HorariosScreen({ navigation }) {
@@ -42,129 +83,165 @@ export default function HorariosScreen({ navigation }) {
   const marcar = async (horario) => {
     setMarcando(horario.id)
     try {
-      const m = await api.post('/marcacoes', { horario_id: horario.id, data })
-      if (horario.preco) {
-        navigation.navigate('Pagamento', { marcacao_id: m.id, valor: horario.preco, descricao: `${horario.nome} — ${data}` })
-      } else {
-        mostrarToast('Aula marcada!')
-      }
+      await api.post('/marcacoes', { horario_id: horario.id, data })
+      mostrarToast('Aula marcada!')
     } catch (e) { mostrarToast(e.message, false) }
     setMarcando(null)
   }
 
-  const mudarData = (dias) => {
-    const d = new Date(data + 'T12:00:00')
-    d.setDate(d.getDate() + dias)
-    setData(d.toISOString().split('T')[0])
-  }
+  if (!loadedLocal) return <View style={s.container}><ActivityIndicator color={colors.accent} /></View>
 
   if (!localId) return (
-    <View style={s.container}>
-      <Text style={s.titulo}>Escolhe um local</Text>
-      {locais.map(l => (
-        <TouchableOpacity key={l.id} style={s.card} onPress={() => { setLocalId(l.id); setAcademiaId(l.academia_id) }}>
-          <Text style={s.cardTitulo}>{l.nome}</Text>
-          {l.endereco && <Text style={s.cardSub}>{l.endereco}</Text>}
-        </TouchableOpacity>
-      ))}
-    </View>
+    <SafeAreaView style={s.container}>
+      <StatusBar barStyle="light-content" />
+      <View style={s.pad}>
+        <View style={s.selectorHeader}>
+          <View style={s.logoMini}><Text style={{ color: '#fff', fontWeight: '800' }}>v</Text></View>
+          <Text style={text.h2}>Escolhe um local</Text>
+        </View>
+        <Text style={[text.body, { marginBottom: 20 }]}>Selecciona onde queres treinar</Text>
+        {locais.map(l => (
+          <TouchableOpacity key={l.id} style={s.localCard}
+            onPress={() => { setLocalId(l.id); setAcademiaId(l.academia_id) }}>
+            <View style={s.localIcon}>
+              <Ionicons name="location" size={20} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={text.h3}>{l.nome}</Text>
+              {l.endereco ? <Text style={[text.sm, { marginTop: 2 }]}>{l.endereco}</Text> : null}
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          </TouchableOpacity>
+        ))}
+      </View>
+    </SafeAreaView>
   )
 
   return (
-    <View style={s.container}>
+    <SafeAreaView style={s.container}>
+      <StatusBar barStyle="light-content" />
+
       {toast && (
-        <View style={[s.toast, { backgroundColor: toast.ok ? '#10b981' : '#ef4444' }]}>
+        <View style={[s.toast, { backgroundColor: toast.ok ? colors.green : colors.red }]}>
+          <Ionicons name={toast.ok ? 'checkmark-circle' : 'alert-circle'} size={16} color="#fff" />
           <Text style={s.toastTxt}>{toast.msg}</Text>
         </View>
       )}
 
-      {/* Navegação de data */}
-      <View style={s.dataNave}>
-        <TouchableOpacity onPress={() => mudarData(-1)} style={s.seta}><Text style={s.setaTxt}>‹</Text></TouchableOpacity>
-        <Text style={s.dataLabel}>{formatarData(data)}</Text>
-        <TouchableOpacity onPress={() => mudarData(1)} style={s.seta}><Text style={s.setaTxt}>›</Text></TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color="#6366f1" style={{ marginTop: 40 }} />
-      ) : horarios.length === 0 ? (
-        <View style={s.vazio}>
-          <Text style={s.vazioBig}>🏖️</Text>
-          <Text style={s.vazioTxt}>Sem aulas disponíveis</Text>
-          <Text style={s.vazioCor}>Tenta outro dia</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={horarios}
-          keyExtractor={h => h.id}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          renderItem={({ item: h }) => (
-            <View style={s.horario}>
-              <View style={s.horarioInfo}>
-                <Text style={s.horarioNome}>{h.nome}</Text>
-                <Text style={s.horarioHora}>
-                  {h.hora_inicio.slice(0,5)} – {h.hora_fim.slice(0,5)}
-                  {h.modalidades ? `  ·  ${h.modalidades.nome}` : ''}
-                </Text>
-                {h.professores && <Text style={s.horarioProf}>👤 {h.professores.nome}</Text>}
-                {h.preco && <Text style={s.horarioPreco}>R$ {parseFloat(h.preco).toFixed(2).replace('.', ',')}</Text>}
-              </View>
-              <View style={s.horarioDir}>
-                <View style={[s.vagas, h.vagas_disponiveis <= 1 && s.vagasAlerta]}>
-                  <Text style={[s.vagasTxt, h.vagas_disponiveis <= 1 && s.vagasTxtAlerta]}>
-                    {h.vagas_disponiveis} vg
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[s.marcarBtn, marcando === h.id && s.marcarBtnDis]}
-                  onPress={() => marcar(h)}
-                  disabled={marcando === h.id}
-                >
-                  <Text style={s.marcarTxt}>{marcando === h.id ? '...' : 'Marcar'}</Text>
+      <FlatList
+        data={horarios}
+        keyExtractor={h => h.id}
+        contentContainerStyle={s.pad}
+        ListHeaderComponent={() => (
+          <>
+            <View style={s.pageHeader}>
+              <View>
+                <Text style={text.h2}>Aulas</Text>
+                <TouchableOpacity onPress={() => setLocalId('')} style={s.localBtn}>
+                  <Ionicons name="location-outline" size={12} color={colors.accent} />
+                  <Text style={s.localBtnTxt}>{locais.find(l => l.id === localId)?.nome || 'Local'}</Text>
+                  <Ionicons name="chevron-down" size={12} color={colors.accent} />
                 </TouchableOpacity>
               </View>
             </View>
-          )}
-        />
-      )}
-
-      <TouchableOpacity onPress={() => setLocalId('')} style={s.trocarLocal}>
-        <Text style={s.trocarLocalTxt}>Trocar local</Text>
-      </TouchableOpacity>
-    </View>
+            <CalendarioSemanal dataSel={data} onChange={setData} />
+            {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: 20 }} />}
+          </>
+        )}
+        ListEmptyComponent={!loading ? (
+          <View style={s.vazio}>
+            <View style={s.vazioBg}><Ionicons name="calendar-outline" size={32} color={colors.accent} /></View>
+            <Text style={[text.h3, { marginTop: 16 }]}>Sem aulas hoje</Text>
+            <Text style={[text.body, { marginTop: 4, textAlign: 'center' }]}>Tenta outro dia</Text>
+          </View>
+        ) : null}
+        renderItem={({ item: h }) => (
+          <View style={s.horario}>
+            <View style={s.horarioHora}>
+              <Text style={s.horarioHoraTxt}>{h.hora_inicio.slice(0,5)}</Text>
+              <Text style={s.horarioHoraFim}>{h.hora_fim.slice(0,5)}</Text>
+            </View>
+            <View style={s.horarioInfo}>
+              <Text style={text.h3}>{h.nome}</Text>
+              <View style={s.horarioMeta}>
+                {h.professores && (
+                  <View style={s.metaItem}>
+                    <Ionicons name="person-outline" size={11} color={colors.textDim} />
+                    <Text style={s.metaTxt}>{h.professores.nome}</Text>
+                  </View>
+                )}
+                {h.recursos && (
+                  <View style={s.metaItem}>
+                    <Ionicons name="location-outline" size={11} color={colors.textDim} />
+                    <Text style={s.metaTxt}>{h.recursos.nome}</Text>
+                  </View>
+                )}
+              </View>
+              {h.preco ? <Text style={s.preco}>R$ {parseFloat(h.preco).toFixed(0)}</Text> : null}
+            </View>
+            <View style={s.horarioDir}>
+              <View style={[s.vagas, h.vagas_disponiveis <= 1 && s.vagasAlerta]}>
+                <Text style={[s.vagasTxt, h.vagas_disponiveis <= 1 && s.vagasTxtAlerta]}>
+                  {h.vagas_disponiveis}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[s.marcarBtn, marcando === h.id && { opacity: 0.5 }]}
+                onPress={() => marcar(h)} disabled={marcando === h.id}>
+                {marcando === h.id
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={s.marcarTxt}>Marcar</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      />
+    </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#020617', padding: 16 },
-  titulo:    { color: '#f1f5f9', fontSize: 20, fontWeight: '700', marginBottom: 16 },
-  card:      { backgroundColor: '#1e293b', borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: '#334155' },
-  cardTitulo:{ color: '#f1f5f9', fontWeight: '600', fontSize: 16 },
-  cardSub:   { color: '#64748b', fontSize: 13, marginTop: 4 },
-  dataNave:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  seta:      { padding: 8 },
-  setaTxt:   { color: '#818cf8', fontSize: 24 },
-  dataLabel: { color: '#f1f5f9', fontWeight: '600', fontSize: 16 },
-  vazio:     { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  vazioBig:  { fontSize: 40, marginBottom: 12 },
-  vazioTxt:  { color: '#94a3b8', fontWeight: '600', fontSize: 16 },
-  vazioCor:  { color: '#475569', fontSize: 14, marginTop: 4 },
-  horario:   { backgroundColor: '#1e293b', borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: '#334155', flexDirection: 'row', alignItems: 'center' },
-  horarioInfo: { flex: 1 },
-  horarioNome: { color: '#f1f5f9', fontWeight: '600', fontSize: 15 },
-  horarioHora: { color: '#818cf8', fontSize: 13, marginTop: 4, fontFamily: Platform?.OS === 'ios' ? 'Courier' : 'monospace' },
-  horarioProf: { color: '#64748b', fontSize: 12, marginTop: 4 },
-  horarioPreco:{ color: '#10b981', fontSize: 13, fontWeight: '600', marginTop: 4 },
-  horarioDir:  { alignItems: 'flex-end', gap: 8 },
-  vagas:     { backgroundColor: '#052e16', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  vagasTxt:  { color: '#34d399', fontSize: 11, fontWeight: '600' },
-  vagasAlerta: { backgroundColor: '#431407' },
-  vagasTxtAlerta: { color: '#fb923c' },
-  marcarBtn: { backgroundColor: '#6366f1', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },
-  marcarBtnDis: { opacity: 0.5 },
-  marcarTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  toast:     { borderRadius: 12, padding: 12, marginBottom: 12, alignItems: 'center' },
-  toastTxt:  { color: '#fff', fontWeight: '600', fontSize: 14 },
-  trocarLocal: { alignItems: 'center', paddingVertical: 12 },
-  trocarLocalTxt: { color: '#475569', fontSize: 13 },
+  container:    { flex: 1, backgroundColor: colors.bg },
+  pad:          { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 12 },
+  pageHeader:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
+  selectorHeader:{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6, marginTop: 16 },
+  logoMini:     { width: 32, height: 32, backgroundColor: colors.accent, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  localBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  localBtnTxt:  { color: colors.accent, fontSize: 12, fontWeight: '600' },
+  localCard:    { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 16, marginBottom: 10 },
+  localIcon:    { width: 40, height: 40, backgroundColor: colors.accentDim, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cal:          { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.xl, padding: 16, marginBottom: 16 },
+  calHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  calArrow:     { padding: 6 },
+  calArrowDis:  { opacity: 0.3 },
+  calMes:       { ...text.body, fontWeight: '600', color: colors.textMed },
+  calDias:      { flexDirection: 'row', justifyContent: 'space-between' },
+  calDia:       { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: radius.md },
+  calDiaSel:    { backgroundColor: colors.accent },
+  calDiaPass:   { opacity: 0.3 },
+  calDiaNome:   { fontSize: 10, fontWeight: '600', color: colors.textDim, marginBottom: 6 },
+  calDiaNomeSel:{ color: '#fff' },
+  calDiaNomePass:{ opacity: 0.4 },
+  calDiaNum:    { fontSize: 16, fontWeight: '700', color: colors.text },
+  calDiaNumSel: { color: '#fff' },
+  vazio:        { alignItems: 'center', paddingTop: 60, paddingBottom: 40 },
+  vazioBg:      { width: 72, height: 72, backgroundColor: colors.accentDim, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  toast:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 20, marginBottom: 8, padding: 12, borderRadius: radius.md },
+  toastTxt:     { color: '#fff', fontWeight: '600', fontSize: 13, flex: 1 },
+  horario:      { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 16, marginBottom: 10, gap: 12 },
+  horarioHora:  { alignItems: 'center', minWidth: 44 },
+  horarioHoraTxt:{ color: colors.accent, fontWeight: '700', fontSize: 15, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
+  horarioHoraFim:{ color: colors.textDim, fontSize: 11, marginTop: 2 },
+  horarioInfo:  { flex: 1 },
+  horarioMeta:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  metaItem:     { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  metaTxt:      { color: colors.textDim, fontSize: 11 },
+  preco:        { color: colors.green, fontSize: 13, fontWeight: '600', marginTop: 4 },
+  horarioDir:   { alignItems: 'flex-end', gap: 8 },
+  vagas:        { backgroundColor: colors.greenDim, borderRadius: 20, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  vagasAlerta:  { backgroundColor: colors.amberDim },
+  vagasTxt:     { color: colors.green, fontSize: 12, fontWeight: '700' },
+  vagasTxtAlerta:{ color: colors.amber },
+  marcarBtn:    { backgroundColor: colors.accent, borderRadius: radius.sm, paddingHorizontal: 14, paddingVertical: 8 },
+  marcarTxt:    { color: '#fff', fontWeight: '700', fontSize: 13 },
 })
