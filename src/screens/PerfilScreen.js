@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Image, StatusBar } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Image, StatusBar, Switch } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
@@ -25,6 +25,7 @@ export default function PerfilScreen() {
         cep: p.cep || '', endereco: p.endereco || '',
         numero: p.numero || '', bairro: p.bairro || '',
         cidade: p.cidade || '', estado: p.estado || '',
+        mostrar_nome_publico: p.mostrar_nome_publico || false,
       })
     }).catch(console.error)
   }, [])
@@ -123,6 +124,20 @@ export default function PerfilScreen() {
           </TouchableOpacity>
           <Text style={s.avatarNome}>{perfil.nome || 'Sem nome'}</Text>
           <Text style={[text.sm, { marginTop: 2 }]}>{perfil.email}</Text>
+        </View>
+
+        {/* Privacidade */}
+        <View style={s.privacidade}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.privTitulo}>Mostrar nome nas sessões</Text>
+            <Text style={s.privDesc}>Outros alunos podem ver o teu primeiro nome nas aulas que marcares</Text>
+          </View>
+          <Switch
+            value={form.mostrar_nome_publico}
+            onValueChange={v => setForm(f => ({ ...f, mostrar_nome_publico: v }))}
+            trackColor={{ false: colors.border, true: colors.accent + '80' }}
+            thumbColor={form.mostrar_nome_publico ? colors.accent : colors.textDim}
+          />
         </View>
 
         {/* Botão documento */}
@@ -239,6 +254,9 @@ const s = StyleSheet.create({
   generoBotaoTxtSel: { color: colors.accent, fontWeight: '600' },
   row:          { flexDirection: 'row' },
   sep2:         { width: 1, backgroundColor: colors.border },
+  privacidade:  { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 16, marginBottom: 4 },
+  privTitulo:   { color: colors.text, fontSize: 14, fontWeight: '600', marginBottom: 3 },
+  privDesc:     { color: colors.textDim, fontSize: 12, lineHeight: 16 },
   btnGuardar:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: 16, marginTop: 20, shadowColor: colors.accent, shadowOffset: {width:0,height:4}, shadowOpacity: 0.3, shadowRadius: 8 },
   btnGuardarTxt:{ color: '#fff', fontWeight: '700', fontSize: 16 },
 })

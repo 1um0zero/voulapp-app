@@ -6,6 +6,7 @@ import { api } from '../lib/api'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { colors, radius, text } from '../lib/theme'
 import VozModal from '../components/VozModal'
+import ParticipantesModal from '../components/ParticipantesModal'
 
 const hoje = () => new Date().toISOString().split('T')[0]
 const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -234,11 +235,12 @@ export default function HorariosScreen({ navigation }) {
                 {h.preco ? <Text style={s.preco}>R$ {parseFloat(h.preco).toFixed(0)}</Text> : null}
               </View>
               <View style={s.horarioDir}>
-                <View style={[s.vagas, h.vagas_disponiveis <= 1 && s.vagasAlerta]}>
-                  <Text style={[s.vagasTxt, h.vagas_disponiveis <= 1 && s.vagasTxtAlerta]}>
-                    {h.vagas_disponiveis}/{h.vagas}
-                  </Text>
-                </View>
+                <ParticipantesModal
+                  horarioId={h.id}
+                  data={data}
+                  vagas={h.vagas}
+                  vagasDisponiveis={h.vagas_disponiveis}
+                />
                 <TouchableOpacity
                   style={[marcado ? s.cancelarBtn : s.marcarBtn, marcando === h.id && { opacity: 0.5 }]}
                   onPress={() => marcado ? cancelarMarcacao(h) : marcar(h)}
