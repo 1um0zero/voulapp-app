@@ -8,6 +8,7 @@ import { colors, radius, text } from '../lib/theme'
 import VozModal from '../components/VozModal'
 import ParticipantesModal from '../components/ParticipantesModal'
 import { falar, saudacao } from '../lib/voz'
+import { buscarTempo } from '../lib/tempo'
 
 const hoje = () => new Date().toISOString().split('T')[0]
 const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -76,9 +77,18 @@ export default function HorariosScreen({ navigation }) {
 
   useEffect(() => {
     api.get('/locais').then(setLocais).catch(console.error)
-    // saudação ao abrir a app pela primeira vez na sessão
-    api.get('/perfil').then(p => {
-      const msg = saudacao(p.nome)
+
+    // saudação com previsão do tempo
+    Promise.all([
+      api.get('/perfil').catch(() => null),
+      api.get('/locais').catch(() => []),
+    ]).then(async ([perfil, todosLocais]) => {
+      let msg = saudacao(perfil?.nome)
+      const localActual = todosLocais.find(l => l.id === localId) || todosLocais[0]
+      if (localActual?.lat && localActual?.lng) {
+        const tempo = await buscarTempo(localActual.lat, localActual.lng)
+        if (tempo) msg += ` Em ${localActual.nome}, ${tempo.temp} graus e ${tempo.descricao}.`
+      }
       falar(msg)
     }).catch(() => falar(saudacao('')))
   }, [])
