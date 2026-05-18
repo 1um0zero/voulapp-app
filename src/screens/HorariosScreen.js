@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { api } from '../lib/api'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { colors, radius, text } from '../lib/theme'
+import VozModal from '../components/VozModal'
 
 const hoje = () => new Date().toISOString().split('T')[0]
 const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -63,6 +64,7 @@ export default function HorariosScreen({ navigation }) {
   const [loading, setLoading] = useState(false)
   const [marcando, setMarcando] = useState(null)
   const [toast, setToast]     = useState(null)
+  const [vozVisivel, setVozVisivel] = useState(false)
 
   const mostrarToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -144,7 +146,23 @@ export default function HorariosScreen({ navigation }) {
                   <Ionicons name="chevron-down" size={12} color={colors.accent} />
                 </TouchableOpacity>
               </View>
+              <TouchableOpacity style={s.micFab} onPress={() => setVozVisivel(true)}>
+                <Ionicons name="mic" size={22} color="#fff" />
+              </TouchableOpacity>
             </View>
+            <VozModal
+              visivel={vozVisivel}
+              onFechar={() => setVozVisivel(false)}
+              localId={localId}
+              data={data}
+              onConfirmar={async (horario, dataAula) => {
+                try {
+                  await api.post('/marcacoes', { horario_id: horario.id, data: dataAula })
+                  mostrarToast(`✓ ${horario.nome} marcado!`)
+                  carregar(dataAula)
+                } catch (e) { mostrarToast(e.message, false) }
+              }}
+            />
             <CalendarioSemanal dataSel={data} onChange={setData} />
             {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: 20 }} />}
           </>
@@ -238,6 +256,7 @@ const s = StyleSheet.create({
   metaItem:     { flexDirection: 'row', alignItems: 'center', gap: 3 },
   metaTxt:      { color: colors.textDim, fontSize: 11 },
   preco:        { color: colors.green, fontSize: 13, fontWeight: '600', marginTop: 4 },
+  micFab:       { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
   horarioDir:   { alignItems: 'flex-end', gap: 8 },
   vagas:        { backgroundColor: colors.greenDim, borderRadius: 20, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   vagasAlerta:  { backgroundColor: colors.amberDim },
