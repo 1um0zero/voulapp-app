@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Platform, StatusBar } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -88,6 +88,20 @@ export default function HorariosScreen({ navigation }) {
       falar(`${saud} ${motiv}`)
     }).catch(() => falar(saudacao('')))
   }, [])
+
+  // meteorologia quando o local é carregado do SecureStore (primeira abertura)
+  const deuMeteoRef = useRef(false)
+  useEffect(() => {
+    if (!loadedLocal || !localId || locais.length === 0) return
+    if (deuMeteoRef.current) return // já falou nesta sessão
+    deuMeteoRef.current = true
+    const local = locais.find(l => l.id === localId)
+    if (local?.lat && local?.lng) {
+      buscarTempo(local.lat, local.lng).then(tempo => {
+        if (tempo) falar(`${local.nome}. Hoje ${tempo.temp} graus e ${tempo.descricao}.`)
+      })
+    }
+  }, [loadedLocal, localId, locais])
 
   useEffect(() => {
     if (!localId) return
