@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator, Animated } from 'react-native'
-import { Audio } from 'expo-av'
+import { useAudioRecorder, AudioModule, RecordingPresets } from 'expo-audio'
 import * as FileSystem from 'expo-file-system'
 import { Ionicons } from '@expo/vector-icons'
 import { api } from '../lib/api'
@@ -14,7 +14,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   const [interpretacao, setInterpretacao] = useState(null)
   const [horarios, setHorarios] = useState([])
   const [horarioSel, setHorarioSel] = useState(null)
-  const gravacao = useRef(null)
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
   const pulso = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -31,23 +31,19 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   }, [estado])
 
   const iniciarGravacao = async () => {
-    const { status } = await Audio.requestPermissionsAsync()
-    if (status !== 'granted') return
-
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
-    const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
-    gravacao.current = recording
+    const { granted } = await AudioModule.requestRecordingPermissionsAsync()
+    if (!granted) return
+    await audioRecorder.record()
     setEstado(ESTADOS.gravando)
   }
 
   const pararGravacao = async () => {
-    if (!gravacao.current) return
+    if (estado !== ESTADOS.gravando) return
     setEstado(ESTADOS.processando)
 
     try {
-      await gravacao.current.stopAndUnloadAsync()
-      const uri = gravacao.current.getURI()
-      gravacao.current = null
+      await audioRecorder.stop()
+      const uri = audioRecorder.uri
 
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })
       const res = await api.post('/voz/interpretar', { audio_base64: base64, formato: 'm4a' })
