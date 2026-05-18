@@ -94,15 +94,15 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
             <View style={s.center}>
               <Text style={text.h3}>Marcação por voz</Text>
               <Text style={[text.body, { textAlign: 'center', marginTop: 8, marginBottom: 28 }]}>
-                Mantém pressionado o microfone e diz o que queres marcar
+                Toca no microfone, fala e toca em Parar
               </Text>
-              <Text style={[text.sm, { marginBottom: 20 }]}>
-                Ex: "Marca beach tênis para amanhã de manhã"
+              <Text style={[text.sm, { marginBottom: 24, fontStyle: 'italic' }]}>
+                "Marca padel para amanhã às 10h"
               </Text>
-              <TouchableOpacity style={s.micBtn} onPressIn={iniciarGravacao} onPressOut={pararGravacao}>
+              <TouchableOpacity style={s.micBtn} onPress={iniciarGravacao}>
                 <Ionicons name="mic" size={36} color="#fff" />
               </TouchableOpacity>
-              <Text style={s.micHint}>Pressiona para falar</Text>
+              <Text style={s.micHint}>Toca para falar</Text>
             </View>
           )}
 
@@ -112,7 +112,11 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
                 <Ionicons name="mic" size={36} color="#fff" />
               </Animated.View>
               <Text style={[text.h3, { marginTop: 20, color: colors.red }]}>A ouvir...</Text>
-              <Text style={[text.body, { marginTop: 6 }]}>Larga para enviar</Text>
+              <Text style={[text.body, { marginTop: 4, marginBottom: 24 }]}>Fala agora</Text>
+              <TouchableOpacity style={s.pararBtn} onPress={pararGravacao}>
+                <Ionicons name="stop-circle" size={20} color="#fff" />
+                <Text style={s.pararTxt}>Parar</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -186,6 +190,8 @@ const s = StyleSheet.create({
   micBtn:           { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', shadowColor: colors.accent, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8 },
   micBtnGravando:   { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center' },
   micHint:          { color: colors.textDim, fontSize: 13, marginTop: 12 },
+  pararBtn:         { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.red, borderRadius: radius.lg, paddingHorizontal: 28, paddingVertical: 14 },
+  pararTxt:         { color: '#fff', fontWeight: '700', fontSize: 16 },
   transcricaoBox:   { backgroundColor: colors.bg, borderRadius: radius.md, padding: 12 },
   transcricaoLabel: { color: colors.textDim, fontSize: 11, fontWeight: '600', marginBottom: 4 },
   transcricaoTxt:   { color: colors.textMed, fontSize: 14, fontStyle: 'italic' },
