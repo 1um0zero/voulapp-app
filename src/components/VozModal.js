@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator, Animated } from 'react-native'
 import { useAudioRecorder, AudioModule, RecordingPresets } from 'expo-audio'
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 import { Ionicons } from '@expo/vector-icons'
 import { api } from '../lib/api'
 import { colors, radius, text } from '../lib/theme'
