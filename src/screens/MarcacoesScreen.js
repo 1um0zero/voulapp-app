@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react'
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, RefreshControl, SafeAreaView, StatusBar } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, RefreshControl, SafeAreaView, StatusBar, Clipboard } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import * as Notifications from 'expo-notifications'
 import { api } from '../lib/api'
 import { colors, radius, text } from '../lib/theme'
 
@@ -36,36 +35,20 @@ function urgencia(data, hora) {
   return 'cool'
 }
 
-async function agendarLembrete(marcacao) {
-  const { status } = await Notifications.requestPermissionsAsync()
-  if (status !== 'granted') { Alert.alert('Permissão necessária', 'Activa as notificações nas definições.'); return }
-
+function agendarLembrete(marcacao) {
   const [h, m] = marcacao.horarios.hora_inicio.split(':').map(Number)
   const dataAula = new Date(marcacao.data + 'T12:00:00')
   dataAula.setHours(h, m, 0, 0)
-  const dataLembrete = new Date(dataAula.getTime() - 60 * 60 * 1000) // 1h antes
+  const lembrete = new Date(dataAula.getTime() - 60 * 60 * 1000)
+  const horaL = lembrete.toTimeString().slice(0, 5)
+  const diaL  = lembrete.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  if (dataLembrete <= new Date()) { Alert.alert('Tarde demais', 'A aula começa em menos de 1 hora.'); return }
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: `🏃 ${marcacao.horarios.nome}`,
-      body: `A tua aula começa em 1 hora — ${marcacao.horarios.hora_inicio.slice(0,5)} em ${marcacao.horarios.locais?.nome}`,
-      sound: true,
-    },
-    trigger: { date: dataLembrete },
-  })
-
-  Alert.alert('✓ Lembrete criado', `Vais receber uma notificação 1 hora antes da aula.`)
+  Alert.alert(
+    '⏰ Lembrete',
+    `Coloca um alarme no teu telemóvel para:\n\n${diaL}\nàs ${horaL}\n\n(1 hora antes da aula)`,
+    [{ text: 'OK' }]
+  )
 }
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-})
 
 export default function MarcacoesScreen() {
   const [futuras, setFuturas]     = useState([])
