@@ -7,7 +7,7 @@ import { useLocalStorage } from '../lib/useLocalStorage'
 import { colors, radius, text } from '../lib/theme'
 import VozModal from '../components/VozModal'
 import ParticipantesModal from '../components/ParticipantesModal'
-import { falar, saudacao } from '../lib/voz'
+import { falar, saudacao, mensagemMotivacional } from '../lib/voz'
 import { buscarTempo } from '../lib/tempo'
 
 const hoje = () => new Date().toISOString().split('T')[0]
@@ -78,18 +78,14 @@ export default function HorariosScreen({ navigation }) {
   useEffect(() => {
     api.get('/locais').then(setLocais).catch(console.error)
 
-    // saudação com previsão do tempo
+    // saudação motivacional ao abrir
     Promise.all([
       api.get('/perfil').catch(() => null),
-      api.get('/locais').catch(() => []),
-    ]).then(async ([perfil, todosLocais]) => {
-      let msg = saudacao(perfil?.nome)
-      const localActual = todosLocais.find(l => l.id === localId) || todosLocais[0]
-      if (localActual?.lat && localActual?.lng) {
-        const tempo = await buscarTempo(localActual.lat, localActual.lng)
-        if (tempo) msg += ` Em ${localActual.nome}, ${tempo.temp} graus e ${tempo.descricao}.`
-      }
-      falar(msg)
+      api.get('/marcacoes/minhas').catch(() => []),
+    ]).then(([perfil, marcacoes]) => {
+      const saud = saudacao(perfil?.nome)
+      const motiv = mensagemMotivacional(marcacoes)
+      falar(`${saud} ${motiv}`)
     }).catch(() => falar(saudacao('')))
   }, [])
 
@@ -152,7 +148,14 @@ export default function HorariosScreen({ navigation }) {
         <Text style={[text.body, { marginBottom: 20 }]}>Selecciona onde queres treinar</Text>
         {locais.map(l => (
           <TouchableOpacity key={l.id} style={s.localCard}
-            onPress={() => { setLocalId(l.id); setAcademiaId(l.academia_id) }}>
+            onPress={async () => {
+              setLocalId(l.id)
+              setAcademiaId(l.academia_id)
+              if (l.lat && l.lng) {
+                const tempo = await buscarTempo(l.lat, l.lng)
+                if (tempo) falar(`${l.nome}. Hoje ${tempo.temp} graus e ${tempo.descricao}.`)
+              }
+            }}>
             <View style={s.localIcon}>
               <Ionicons name="location" size={20} color={colors.accent} />
             </View>

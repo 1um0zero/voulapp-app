@@ -21,3 +21,21 @@ export function saudacao(nome) {
   const primeiroNome = nome?.split(' ')[0] || ''
   return `${periodo}${primeiroNome ? `, ${primeiroNome}` : ''}!`
 }
+
+export function mensagemMotivacional(marcacoesRecentes) {
+  const total = marcacoesRecentes?.length || 0
+  const hoje = new Date().toISOString().split('T')[0]
+  const temHoje = marcacoesRecentes?.some(m => m.data === hoje)
+
+  if (temHoje) return 'Tens uma aula hoje. Vamos a isso!'
+  if (total === 0) return 'Pronto para começar? Marca a tua próxima aula!'
+
+  const msgs = [
+    'Ótimo dia para se exercitar!',
+    'Continua assim, estás a ir bem!',
+    'Cada treino conta. Vamos lá!',
+    'O teu corpo agradece cada sessão.',
+    'Mais um dia, mais um treino. Força!',
+  ]
+  return msgs[Math.floor(Math.random() * msgs.length)]
+}

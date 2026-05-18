@@ -62,14 +62,35 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
       // falar o resultado da interpretação
       if (res.resposta) falar(res.resposta)
 
-      if (res.acao === 'marcar' && localId && res.data) {
-        const h = await api.get(`/horarios/disponiveis?local_id=${localId}&data=${res.data}`)
-        const desc = res.descricao_aula?.toLowerCase() || ''
-        const correspondentes = desc
-          ? h.filter(x => x.nome.toLowerCase().includes(desc) || (x.modalidades?.nome || '').toLowerCase().includes(desc))
-          : h
-        setHorarios(correspondentes)
-        if (correspondentes.length === 1) setHorarioSel(correspondentes[0])
+      const desc = res.descricao_aula?.toLowerCase() || ''
+
+      if ((res.acao === 'marcar' || res.acao === 'listar') && localId) {
+        // listar para intervalo de datas (ex: "fitness esta semana")
+        if (res.data_inicio && res.data_fim) {
+          const todasAulas = []
+          let d = new Date(res.data_inicio + 'T12:00:00')
+          const fim = new Date(res.data_fim + 'T12:00:00')
+          while (d <= fim) {
+            const iso = d.toISOString().split('T')[0]
+            try {
+              const h = await api.get(`/horarios/disponiveis?local_id=${localId}&data=${iso}`)
+              const filtradas = desc
+                ? h.filter(x => x.nome.toLowerCase().includes(desc) || (x.modalidades?.nome || '').toLowerCase().includes(desc))
+                : h
+              filtradas.forEach(x => todasAulas.push({ ...x, _data: iso }))
+            } catch {}
+            d.setDate(d.getDate() + 1)
+          }
+          setHorarios(todasAulas)
+        } else if (res.data) {
+          // data específica
+          const h = await api.get(`/horarios/disponiveis?local_id=${localId}&data=${res.data}`)
+          const correspondentes = desc
+            ? h.filter(x => x.nome.toLowerCase().includes(desc) || (x.modalidades?.nome || '').toLowerCase().includes(desc))
+            : h
+          setHorarios(correspondentes)
+          if (correspondentes.length === 1) setHorarioSel(correspondentes[0])
+        }
       }
 
       setEstado(ESTADOS.resultado)
@@ -84,6 +105,31 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     await onConfirmar(horarioSel, interpretacao.data)
     falar(`Aula marcada! ${horarioSel.nome} confirmada.`)
     fechar()
+  }
+
+  const ouvirConfirmacao = async () => {
+    pararVoz()
+    try {
+      await audioRecorder.prepareToRecordAsync()
+      await audioRecorder.record()
+      // gravar 3 segundos automaticamente
+      setTimeout(async () => {
+        await audioRecorder.stop()
+        const uri = audioRecorder.uri
+        if (!uri) return
+        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' })
+        const res = await api.post('/voz/interpretar', { audio_base64: base64, formato: 'm4a' })
+        const texto = res.transcricao?.toLowerCase() || ''
+        if (texto.includes('sim') || texto.includes('confirma') || texto.includes('ok') || texto.includes('vai')) {
+          confirmar()
+        } else if (texto.includes('não') || texto.includes('cancela') || texto.includes('nao')) {
+          falar('Tudo bem, marcação cancelada.')
+          fechar()
+        } else {
+          falar('Não percebi. Diz sim para confirmar ou não para cancelar.')
+        }
+      }, 3000)
+    } catch (e) { console.error('[voz confirmação]', e) }
   }
 
   const fechar = () => {
@@ -155,14 +201,16 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
                 <Text style={s.respostaTxt}>{interpretacao.resposta}</Text>
               </View>
 
-              {horarios.length > 1 && (
+              {horarios.length > 0 && (
                 <View style={{ gap: 8 }}>
-                  <Text style={text.label}>Escolhe a aula:</Text>
-                  {horarios.map(h => (
-                    <TouchableOpacity key={h.id} onPress={() => setHorarioSel(h)}
+                  <Text style={text.label}>
+                    {horarios.length === 1 ? 'Aula encontrada:' : `${horarios.length} aulas disponíveis:`}
+                  </Text>
+                  {horarios.map((h, i) => (
+                    <TouchableOpacity key={h.id + (h._data || '') + i} onPress={() => { setHorarioSel(h); if (h._data) setInterpretacao(prev => ({ ...prev, data: h._data })) }}
                       style={[s.horarioOpt, horarioSel?.id === h.id && s.horarioOptSel]}>
                       <Text style={[s.horarioOptTxt, horarioSel?.id === h.id && { color: colors.accent }]}>
-                        {h.nome} · {h.hora_inicio.slice(0,5)}
+                        {h.nome} · {h.hora_inicio.slice(0,5)}{h._data ? ` · ${new Date(h._data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })}` : ''}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -170,12 +218,16 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
               )}
 
               {horarioSel && interpretacao.data && (
-                <TouchableOpacity style={s.confirmarBtn} onPress={confirmar}>
-                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                  <Text style={s.confirmarTxt}>
-                    Confirmar · {horarioSel.nome} · {interpretacao.data}
-                  </Text>
-                </TouchableOpacity>
+                <View style={{ gap: 8 }}>
+                  <TouchableOpacity style={s.confirmarBtn} onPress={confirmar}>
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                    <Text style={s.confirmarTxt}>Confirmar · {horarioSel.nome}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.vozConfirmarBtn} onPress={ouvirConfirmacao}>
+                    <Ionicons name="mic" size={16} color={colors.accent} />
+                    <Text style={s.vozConfirmarTxt}>Responder por voz (3 seg)</Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {estado === ESTADOS.resultado && horarios.length === 0 && interpretacao.acao === 'marcar' && (
@@ -215,5 +267,7 @@ const s = StyleSheet.create({
   horarioOptTxt:    { color: colors.textMed, fontSize: 14 },
   confirmarBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.accent, borderRadius: radius.lg, padding: 14, justifyContent: 'center' },
   confirmarTxt:     { color: '#fff', fontWeight: '700', fontSize: 14 },
+  vozConfirmarBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.accent + '60', borderRadius: radius.lg, padding: 12, justifyContent: 'center' },
+  vozConfirmarTxt:  { color: colors.accent, fontSize: 13 },
   fecharBtn:        { alignItems: 'center', marginTop: 16 },
 })

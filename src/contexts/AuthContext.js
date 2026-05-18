@@ -59,8 +59,7 @@ export function AuthProvider({ children }) {
   }
 
   const sair = async () => {
-    await desactivarBiometria()
-    setBiometriaOn(false)
+    // não apagar preferência biométrica — é do dispositivo, não da conta
     setBloqueado(false)
     await supabase.auth.signOut()
   }
