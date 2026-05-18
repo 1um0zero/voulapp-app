@@ -4,19 +4,19 @@ import { api } from '../lib/api'
 import { useLocalStorage } from '../lib/useLocalStorage'
 
 export default function PlanosScreen() {
-  const [academiaId] = useLocalStorage('academia_id', '')
+  const [academiaId, , loadedAcademia] = useLocalStorage('academia_id', '')
   const [planos, setPlanos]   = useState([])
   const [loading, setLoading] = useState(true)
   const [pagando, setPagando] = useState(null)
 
   useEffect(() => {
-    if (academiaId === '') return // ainda a carregar do SecureStore
+    if (!loadedAcademia) return
     if (!academiaId) { setLoading(false); return }
     api.get(`/planos?academia_id=${academiaId}`)
       .then(d => setPlanos(d.filter(p => p.ativo)))
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [academiaId])
+  }, [academiaId, loadedAcademia])
 
   const subscrever = async (plano, metodo) => {
     setPagando(plano.id + metodo)

@@ -13,7 +13,7 @@ function formatarData(iso) {
 }
 
 export default function HorariosScreen({ navigation }) {
-  const [localId, setLocalId] = useLocalStorage('local_id', '')
+  const [localId, setLocalId, loadedLocal] = useLocalStorage('local_id', '')
   const [locais, setLocais]   = useState([])
   const [horarios, setHorarios] = useState([])
   const [data, setData]       = useState(hoje())
