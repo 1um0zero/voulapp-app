@@ -59,11 +59,12 @@ export default function HorariosScreen({ navigation }) {
   const [localId, setLocalId, loadedLocal] = useLocalStorage('local_id', '')
   const [, setAcademiaId] = useLocalStorage('academia_id', '')
   const [locais, setLocais]   = useState([])
-  const [horarios, setHorarios] = useState([])
-  const [data, setData]       = useState(hoje())
-  const [loading, setLoading] = useState(false)
-  const [marcando, setMarcando] = useState(null)
-  const [toast, setToast]     = useState(null)
+  const [horarios, setHorarios]   = useState([])
+  const [minhas, setMinhas]       = useState({}) // horario_id -> marcacao
+  const [data, setData]           = useState(hoje())
+  const [loading, setLoading]     = useState(false)
+  const [marcando, setMarcando]   = useState(null)
+  const [toast, setToast]         = useState(null)
   const [vozVisivel, setVozVisivel] = useState(false)
 
   const mostrarToast = (msg, ok = true) => {
@@ -78,9 +79,18 @@ export default function HorariosScreen({ navigation }) {
   useEffect(() => {
     if (!localId) return
     setLoading(true)
-    api.get(`/horarios/disponiveis?local_id=${localId}&data=${data}`)
-      .then(setHorarios).catch(() => setHorarios([]))
-      .finally(() => setLoading(false))
+    Promise.all([
+      api.get(`/horarios/disponiveis?local_id=${localId}&data=${data}`),
+      api.get('/marcacoes/minhas').catch(() => []),
+    ]).then(([h, m]) => {
+      setHorarios(h)
+      // mapa horario_id -> marcacao para o dia seleccionado
+      const mapa = {}
+      m.filter(mc => mc.data === data && mc.status !== 'cancelada')
+       .forEach(mc => { mapa[mc.horario_id] = mc })
+      setMinhas(mapa)
+    }).catch(() => setHorarios([]))
+     .finally(() => setLoading(false))
   }, [localId, data])
 
   const marcar = async (horario) => {
@@ -88,6 +98,26 @@ export default function HorariosScreen({ navigation }) {
     try {
       await api.post('/marcacoes', { horario_id: horario.id, data })
       mostrarToast('Aula marcada!')
+      const m = await api.get('/marcacoes/minhas').catch(() => [])
+      const mapa = {}
+      m.filter(mc => mc.data === data && mc.status !== 'cancelada')
+       .forEach(mc => { mapa[mc.horario_id] = mc })
+      setMinhas(mapa)
+    } catch (e) { mostrarToast(e.message, false) }
+    setMarcando(null)
+  }
+
+  const cancelarMarcacao = async (horario) => {
+    const mc = minhas[horario.id]
+    if (!mc) return
+    setMarcando(horario.id)
+    try {
+      await api.patch(`/marcacoes/${mc.id}`, { status: 'cancelada' })
+      mostrarToast('Marcação cancelada')
+      setMinhas(prev => { const n = { ...prev }; delete n[horario.id]; return n })
+      setHorarios(prev => prev.map(h =>
+        h.id === horario.id ? { ...h, vagas_disponiveis: h.vagas_disponiveis + 1 } : h
+      ))
     } catch (e) { mostrarToast(e.message, false) }
     setMarcando(null)
   }
@@ -174,46 +204,53 @@ export default function HorariosScreen({ navigation }) {
             <Text style={[text.body, { marginTop: 4, textAlign: 'center' }]}>Tenta outro dia</Text>
           </View>
         ) : null}
-        renderItem={({ item: h }) => (
-          <View style={s.horario}>
-            <View style={s.horarioHora}>
-              <Text style={s.horarioHoraTxt}>{h.hora_inicio.slice(0,5)}</Text>
-              <Text style={s.horarioHoraFim}>{h.hora_fim.slice(0,5)}</Text>
-            </View>
-            <View style={s.horarioInfo}>
-              <Text style={text.h3}>{h.nome}</Text>
-              <View style={s.horarioMeta}>
-                {h.professores && (
-                  <View style={s.metaItem}>
-                    <Ionicons name="person-outline" size={11} color={colors.textDim} />
-                    <Text style={s.metaTxt}>{h.professores.nome}</Text>
-                  </View>
-                )}
-                {h.recursos && (
-                  <View style={s.metaItem}>
-                    <Ionicons name="location-outline" size={11} color={colors.textDim} />
-                    <Text style={s.metaTxt}>{h.recursos.nome}</Text>
-                  </View>
-                )}
+        renderItem={({ item: h }) => {
+          const marcado = !!minhas[h.id]
+          return (
+            <View style={[s.horario, marcado && s.horarioMarcado]}>
+              <View style={s.horarioHora}>
+                <Text style={s.horarioHoraTxt}>{h.hora_inicio.slice(0,5)}</Text>
+                <Text style={s.horarioHoraFim}>{h.hora_fim.slice(0,5)}</Text>
               </View>
-              {h.preco ? <Text style={s.preco}>R$ {parseFloat(h.preco).toFixed(0)}</Text> : null}
-            </View>
-            <View style={s.horarioDir}>
-              <View style={[s.vagas, h.vagas_disponiveis <= 1 && s.vagasAlerta]}>
-                <Text style={[s.vagasTxt, h.vagas_disponiveis <= 1 && s.vagasTxtAlerta]}>
-                  {h.vagas_disponiveis}/{h.vagas}
-                </Text>
+              <View style={s.horarioInfo}>
+                <View style={s.nomeLinha}>
+                  <Text style={text.h3}>{h.nome}</Text>
+                  {marcado && <Ionicons name="checkmark-circle" size={16} color={colors.green} />}
+                </View>
+                <View style={s.horarioMeta}>
+                  {h.professores && (
+                    <View style={s.metaItem}>
+                      <Ionicons name="person-outline" size={11} color={colors.textDim} />
+                      <Text style={s.metaTxt}>{h.professores.nome}</Text>
+                    </View>
+                  )}
+                  {h.recursos && (
+                    <View style={s.metaItem}>
+                      <Ionicons name="location-outline" size={11} color={colors.textDim} />
+                      <Text style={s.metaTxt}>{h.recursos.nome}</Text>
+                    </View>
+                  )}
+                </View>
+                {h.preco ? <Text style={s.preco}>R$ {parseFloat(h.preco).toFixed(0)}</Text> : null}
               </View>
-              <TouchableOpacity
-                style={[s.marcarBtn, marcando === h.id && { opacity: 0.5 }]}
-                onPress={() => marcar(h)} disabled={marcando === h.id}>
-                {marcando === h.id
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={s.marcarTxt}>Marcar</Text>}
-              </TouchableOpacity>
+              <View style={s.horarioDir}>
+                <View style={[s.vagas, h.vagas_disponiveis <= 1 && s.vagasAlerta]}>
+                  <Text style={[s.vagasTxt, h.vagas_disponiveis <= 1 && s.vagasTxtAlerta]}>
+                    {h.vagas_disponiveis}/{h.vagas}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[marcado ? s.cancelarBtn : s.marcarBtn, marcando === h.id && { opacity: 0.5 }]}
+                  onPress={() => marcado ? cancelarMarcacao(h) : marcar(h)}
+                  disabled={marcando === h.id}>
+                  {marcando === h.id
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={marcado ? s.cancelarTxt : s.marcarTxt}>{marcado ? 'Cancelar' : 'Marcar'}</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
+          )
+        }}
       />
     </SafeAreaView>
   )
@@ -262,6 +299,10 @@ const s = StyleSheet.create({
   vagasAlerta:  { backgroundColor: colors.amberDim },
   vagasTxt:     { color: colors.green, fontSize: 12, fontWeight: '700' },
   vagasTxtAlerta:{ color: colors.amber },
+  horarioMarcado: { borderColor: colors.green + '50', backgroundColor: colors.greenDim + '20' },
+  nomeLinha:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
   marcarBtn:    { backgroundColor: colors.accent, borderRadius: radius.sm, paddingHorizontal: 14, paddingVertical: 8 },
   marcarTxt:    { color: '#fff', fontWeight: '700', fontSize: 13 },
+  cancelarBtn:  { backgroundColor: colors.redDim, borderWidth: 1, borderColor: colors.red + '50', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8 },
+  cancelarTxt:  { color: colors.red, fontWeight: '700', fontSize: 13 },
 })
