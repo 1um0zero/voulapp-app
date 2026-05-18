@@ -32,9 +32,12 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
   const iniciarGravacao = async () => {
     const { granted } = await AudioModule.requestRecordingPermissionsAsync()
-    if (!granted) return
-    await audioRecorder.record()
-    setEstado(ESTADOS.gravando)
+    if (!granted) { alert('Permissão de microfone necessária'); return }
+    try {
+      await audioRecorder.prepareToRecordAsync()
+      await audioRecorder.record()
+      setEstado(ESTADOS.gravando)
+    } catch (e) { console.error('[Voz] iniciar:', e) }
   }
 
   const pararGravacao = async () => {
@@ -44,6 +47,9 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     try {
       await audioRecorder.stop()
       const uri = audioRecorder.uri
+      console.log('[Voz] URI:', uri)
+
+      if (!uri) throw new Error('Ficheiro de áudio não encontrado')
 
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })
       const res = await api.post('/voz/interpretar', { audio_base64: base64, formato: 'm4a' })
