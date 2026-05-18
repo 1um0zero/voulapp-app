@@ -18,7 +18,7 @@ const ESTADOS = {
 
 function lerLista(lista, onDone) {
   if (lista.length === 0) {
-    Speech.speak('Não encontrei aulas disponíveis para esse pedido. Queres tentar outra pesquisa?', { language: 'pt-BR', onDone })
+    Speech.speak('Não encontrei aulas disponíveis para esse pedido. Quer tentar outra pesquisa?', { language: 'pt-BR', onDone })
     return
   }
   if (lista.length === 1) {
@@ -167,8 +167,8 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
       const t = (res.transcricao || '').toLowerCase()
 
       // detectar CANCELAR
-      if (t.includes('não') || t.includes('nao') || t.includes('cancela') || t.includes('não quero')) {
-        Speech.speak('Tudo bem! Queres procurar outra aula?', { language: 'pt-BR',
+      if (t.includes('não') || t.includes('nao') || t.includes('cancela')) {
+        Speech.speak('Tudo bem, quer procurar outra alternativa?', { language: 'pt-BR',
           onDone: () => setEstado(ESTADOS.idle)
         })
         return
@@ -179,11 +179,12 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
         if (t.includes('sim') || t.includes('ok') || t.includes('marca') || t.includes('confirma') || t.includes('claro') || t.includes('vai')) {
           confirmarDirecto(lista[0], lista[0]._data)
         } else if (t.trim() === '') {
-          // silêncio — mostra opção para clicar sem falar nada
+          // silêncio — deixa a lista visível
           setEstado(ESTADOS.resultado)
+          Speech.speak('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
         } else {
           setEstado(ESTADOS.resultado)
-          Speech.speak('Não percebi. Toca na aula para confirmar ou diz "não" para cancelar.', { language: 'pt-BR' })
+          Speech.speak('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
         }
         return
       }
@@ -194,19 +195,31 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
         confirmarDirecto(lista[indice], lista[indice]._data)
       } else {
         setEstado(ESTADOS.resultado)
-        Speech.speak('Não percebi. Toca na aula que queres ou diz "não" para cancelar.', { language: 'pt-BR' })
+        Speech.speak('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
       }
     } catch { setEstado(ESTADOS.resultado) }
   }
 
   // ── Confirmar ──────────────────────────────────────────────
+  const mensagemFinal = (nomeAula) => {
+    const n = nomeAula.toLowerCase()
+    if (n.includes('beach') || n.includes('tênis') || n.includes('tenis') || n.includes('padel') || n.includes('squash'))
+      return 'Bom jogo!'
+    if (n.includes('fitness') || n.includes('funcional') || n.includes('hiit') || n.includes('musculação'))
+      return 'Bom treino!'
+    if (n.includes('natação') || n.includes('natacao') || n.includes('piscina'))
+      return 'Boa natação!'
+    return 'Diverte-te!'
+  }
+
   const confirmarDirecto = async (horario, dataAula) => {
     setEstado(ESTADOS.confirmando)
     try {
       await onConfirmar(horario, dataAula)
-      Speech.speak(`Aula marcada! ${horario.nome} confirmada.`, { language: 'pt-BR' })
+      const encerramento = mensagemFinal(horario.nome)
+      Speech.speak(`Marquei! ${encerramento}`, { language: 'pt-BR' })
     } catch {}
-    setTimeout(fechar, 2000)
+    setTimeout(fechar, 2500)
   }
 
   const confirmarToque = (horario) => {
