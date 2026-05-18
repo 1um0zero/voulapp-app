@@ -7,6 +7,7 @@ import { useLocalStorage } from '../lib/useLocalStorage'
 import { colors, radius, text } from '../lib/theme'
 import VozModal from '../components/VozModal'
 import ParticipantesModal from '../components/ParticipantesModal'
+import { falar, saudacao } from '../lib/voz'
 
 const hoje = () => new Date().toISOString().split('T')[0]
 const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -75,6 +76,11 @@ export default function HorariosScreen({ navigation }) {
 
   useEffect(() => {
     api.get('/locais').then(setLocais).catch(console.error)
+    // saudação ao abrir a app pela primeira vez na sessão
+    api.get('/perfil').then(p => {
+      const msg = saudacao(p.nome)
+      falar(msg)
+    }).catch(() => falar(saudacao('')))
   }, [])
 
   useEffect(() => {

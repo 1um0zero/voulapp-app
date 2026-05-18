@@ -5,6 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy'
 import { Ionicons } from '@expo/vector-icons'
 import { api } from '../lib/api'
 import { colors, radius, text } from '../lib/theme'
+import { falar, pararVoz } from '../lib/voz'
 
 const ESTADOS = { idle: 'idle', gravando: 'gravando', processando: 'processando', resultado: 'resultado', erro: 'erro' }
 
@@ -34,6 +35,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     const { granted } = await AudioModule.requestRecordingPermissionsAsync()
     if (!granted) { alert('Permissão de microfone necessária'); return }
     try {
+      pararVoz() // parar qualquer voz antes de gravar
       await audioRecorder.prepareToRecordAsync()
       await audioRecorder.record()
       setEstado(ESTADOS.gravando)
@@ -57,6 +59,9 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
       setTranscricao(res.transcricao)
       setInterpretacao(res)
 
+      // falar o resultado da interpretação
+      if (res.resposta) falar(res.resposta)
+
       if (res.acao === 'marcar' && localId && res.data) {
         const h = await api.get(`/horarios/disponiveis?local_id=${localId}&data=${res.data}`)
         const desc = res.descricao_aula?.toLowerCase() || ''
@@ -77,10 +82,12 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   const confirmar = async () => {
     if (!horarioSel || !interpretacao?.data) return
     await onConfirmar(horarioSel, interpretacao.data)
+    falar(`Aula marcada! ${horarioSel.nome} confirmada.`)
     fechar()
   }
 
   const fechar = () => {
+    pararVoz()
     setEstado(ESTADOS.idle)
     setTranscricao('')
     setInterpretacao(null)
@@ -118,7 +125,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
                 <Ionicons name="mic" size={36} color="#fff" />
               </Animated.View>
               <Text style={[text.h3, { marginTop: 20, color: colors.red }]}>A ouvir...</Text>
-              <Text style={[text.body, { marginTop: 4, marginBottom: 24 }]}>Fala agora</Text>
+              <Text style={[text.body, { marginTop: 4, marginBottom: 24 }]}>Fala agora e toca em Parar</Text>
               <TouchableOpacity style={s.pararBtn} onPress={pararGravacao}>
                 <Ionicons name="stop-circle" size={20} color="#fff" />
                 <Text style={s.pararTxt}>Parar</Text>
