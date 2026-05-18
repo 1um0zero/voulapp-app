@@ -159,8 +159,7 @@ export default function HorariosScreen({ navigation }) {
                 try {
                   await api.post('/marcacoes', { horario_id: horario.id, data: dataAula })
                   mostrarToast(`✓ ${horario.nome} marcado!`)
-                  setData(dataAula)
-                  carregar(dataAula)
+                  setData(dataAula) // dispara o useEffect que recarrega os horários
                 } catch (e) { mostrarToast(e.message, false) }
               }}
             />
