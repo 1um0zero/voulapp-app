@@ -8,7 +8,8 @@ import { colors } from '../lib/theme'
 
 import LoginScreen     from '../screens/LoginScreen'
 import RegistarScreen  from '../screens/RegistarScreen'
-import WelcomeScreen   from '../screens/WelcomeScreen'
+import WelcomeScreen    from '../screens/WelcomeScreen'
+import BiometriaScreen  from '../screens/BiometriaScreen'
 import HorariosScreen  from '../screens/HorariosScreen'
 import MarcacoesScreen from '../screens/MarcacoesScreen'
 import PlanosScreen    from '../screens/PlanosScreen'
@@ -72,12 +73,17 @@ function AuthStack() {
 }
 
 export default function AppNavigator() {
-  const { session, loading } = useAuth()
+  const { session, loading, bloqueado } = useAuth()
   if (loading) return null
 
   return (
     <NavigationContainer>
-      {session ? <TabNavigator /> : <AuthStack />}
+      {session && bloqueado
+        ? <BiometriaScreen />
+        : session
+          ? <TabNavigator />
+          : <AuthStack />
+      }
     </NavigationContainer>
   )
 }
