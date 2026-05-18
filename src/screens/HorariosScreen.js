@@ -14,6 +14,7 @@ function formatarData(iso) {
 
 export default function HorariosScreen({ navigation }) {
   const [localId, setLocalId, loadedLocal] = useLocalStorage('local_id', '')
+  const [, setAcademiaId] = useLocalStorage('academia_id', '')
   const [locais, setLocais]   = useState([])
   const [horarios, setHorarios] = useState([])
   const [data, setData]       = useState(hoje())
@@ -61,7 +62,7 @@ export default function HorariosScreen({ navigation }) {
     <View style={s.container}>
       <Text style={s.titulo}>Escolhe um local</Text>
       {locais.map(l => (
-        <TouchableOpacity key={l.id} style={s.card} onPress={() => setLocalId(l.id)}>
+        <TouchableOpacity key={l.id} style={s.card} onPress={() => { setLocalId(l.id); setAcademiaId(l.academia_id) }}>
           <Text style={s.cardTitulo}>{l.nome}</Text>
           {l.endereco && <Text style={s.cardSub}>{l.endereco}</Text>}
         </TouchableOpacity>
