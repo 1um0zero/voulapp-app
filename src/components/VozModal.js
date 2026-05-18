@@ -18,7 +18,7 @@ const ESTADOS = {
 
 function lerLista(lista, onDone) {
   if (lista.length === 0) {
-    Speech.speak('Não encontrei aulas disponíveis para esse pedido.', { language: 'pt-BR', onDone })
+    Speech.speak('Não encontrei aulas disponíveis para esse pedido. Queres tentar outra pesquisa?', { language: 'pt-BR', onDone })
     return
   }
   if (lista.length === 1) {
@@ -26,7 +26,7 @@ function lerLista(lista, onDone) {
     const dataStr = h._data
       ? new Date(h._data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
       : ''
-    const msg = `Encontrei ${h.nome}${dataStr ? ` para ${dataStr}` : ''} às ${h.hora_inicio.slice(0,5)}. A confirmar automaticamente.`
+    const msg = `Encontrei ${h.nome}${dataStr ? ` para ${dataStr}` : ''} às ${h.hora_inicio.slice(0,5)}. Posso marcar?`
     Speech.speak(msg, { language: 'pt-BR', onDone })
     return
   }
@@ -140,12 +140,8 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
     // ler a lista e ouvir resposta automaticamente
     lerLista(lista, () => {
-      if (lista.length === 1) {
-        // confirmar automaticamente a única opção
-        setHorarioSel(lista[0])
-        confirmarDirecto(lista[0], lista[0]._data)
-      } else if (lista.length > 1) {
-        iniciarEscutaResposta(lista)
+      if (lista.length >= 1) {
+        iniciarEscutaResposta(lista) // ouve sempre — sim/não para 1 opção, número para múltiplas
       }
     })
   }
@@ -165,17 +161,40 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     try {
       await audioRecorder.stop()
       const uri = audioRecorder.uri
-      if (!uri) return
+      if (!uri) { setEstado(ESTADOS.resultado); return }
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' })
       const res = await api.post('/voz/interpretar', { audio_base64: base64, formato: 'm4a' })
-      const indice = interpretarNumero(res.transcricao || '', lista.length)
-      if (indice >= 0 && indice < lista.length) {
-        const h = lista[indice]
-        setHorarioSel(h)
-        confirmarDirecto(h, h._data)
+      const t = (res.transcricao || '').toLowerCase()
+
+      // detectar CANCELAR
+      if (t.includes('não') || t.includes('nao') || t.includes('cancela') || t.includes('não quero')) {
+        Speech.speak('Tudo bem! Queres procurar outra aula?', { language: 'pt-BR',
+          onDone: () => setEstado(ESTADOS.idle)
+        })
+        return
+      }
+
+      // 1 opção — detectar SIM/OK
+      if (lista.length === 1) {
+        if (t.includes('sim') || t.includes('ok') || t.includes('marca') || t.includes('confirma') || t.includes('claro') || t.includes('vai')) {
+          confirmarDirecto(lista[0], lista[0]._data)
+        } else if (t.trim() === '') {
+          // silêncio — mostra opção para clicar sem falar nada
+          setEstado(ESTADOS.resultado)
+        } else {
+          setEstado(ESTADOS.resultado)
+          Speech.speak('Não percebi. Toca na aula para confirmar ou diz "não" para cancelar.', { language: 'pt-BR' })
+        }
+        return
+      }
+
+      // múltiplas opções — detectar número
+      const indice = interpretarNumero(t, lista.length)
+      if (indice >= 0) {
+        confirmarDirecto(lista[indice], lista[indice]._data)
       } else {
         setEstado(ESTADOS.resultado)
-        Speech.speak('Não percebi. Toca na aula que queres confirmar.', { language: 'pt-BR' })
+        Speech.speak('Não percebi. Toca na aula que queres ou diz "não" para cancelar.', { language: 'pt-BR' })
       }
     } catch { setEstado(ESTADOS.resultado) }
   }
@@ -259,8 +278,12 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
               <Animated.View style={[s.micBtnAccent, { transform: [{ scale: pulso }] }]}>
                 <Ionicons name="ear" size={32} color="#fff" />
               </Animated.View>
-              <Text style={[text.h3, { marginTop: 20 }]}>A ouvir a tua escolha...</Text>
-              <Text style={[text.body, { marginTop: 4 }]}>Diz um número (4 segundos)</Text>
+              <Text style={[text.h3, { marginTop: 20 }]}>A ouvir...</Text>
+              <Text style={[text.body, { marginTop: 4 }]}>
+                {horarios.length === 1
+                  ? 'Diz "sim" para confirmar ou "não" para cancelar'
+                  : 'Diz um número para escolher (4 segundos)'}
+              </Text>
             </View>
           )}
 
