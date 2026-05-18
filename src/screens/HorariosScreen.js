@@ -183,7 +183,7 @@ export default function HorariosScreen({ navigation }) {
             <View style={s.horarioDir}>
               <View style={[s.vagas, h.vagas_disponiveis <= 1 && s.vagasAlerta]}>
                 <Text style={[s.vagasTxt, h.vagas_disponiveis <= 1 && s.vagasTxtAlerta]}>
-                  {h.vagas_disponiveis}
+                  {h.vagas_disponiveis}/{h.vagas}
                 </Text>
               </View>
               <TouchableOpacity
