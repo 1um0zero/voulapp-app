@@ -51,7 +51,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
       if (!uri) throw new Error('Ficheiro de áudio não encontrado')
 
-      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' })
       const res = await api.post('/voz/interpretar', { audio_base64: base64, formato: 'm4a' })
 
       setTranscricao(res.transcricao)
