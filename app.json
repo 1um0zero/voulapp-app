@@ -34,7 +34,9 @@
     },
     "plugins": [
       "expo-audio",
-      "expo-image-picker"
+      "expo-image-picker",
+      "expo-font",
+      "expo-asset"
     ],
     "extra": {
       "eas": {
