@@ -106,6 +106,14 @@ export default function PerfilScreen() {
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
 
+      {/* Header com logout */}
+      <View style={s.header}>
+        <Text style={s.headerTitulo}>Perfil</Text>
+        <TouchableOpacity onPress={sair} style={s.btnSairTopo}>
+          <Text style={s.btnSairTopoTxt}>Sair</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Avatar */}
       <View style={s.avatarRow}>
         <TouchableOpacity onPress={opcoesFoto}>
@@ -193,6 +201,10 @@ function Campo({ label, value, onChange, kb = 'default', ph }) {
 
 const s = StyleSheet.create({
   container:      { flex: 1, backgroundColor: '#020617' },
+  header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  headerTitulo:   { color: '#f1f5f9', fontSize: 20, fontWeight: '700' },
+  btnSairTopo:    { paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: '#334155', borderRadius: 10 },
+  btnSairTopoTxt: { color: '#64748b', fontSize: 13 },
   avatarRow:      { alignItems: 'center', marginBottom: 16, marginTop: 8 },
   avatarImg:      { width: 80, height: 80, borderRadius: 40 },
   avatar:         { width: 80, height: 80, borderRadius: 40, backgroundColor: '#312e81', alignItems: 'center', justifyContent: 'center' },
