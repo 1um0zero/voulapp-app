@@ -1,53 +1,102 @@
-import { useState, useEffect, useCallback } from 'react'
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, RefreshControl, StatusBar } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useState, useCallback } from 'react'
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, RefreshControl, SafeAreaView, StatusBar } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
+import * as Notifications from 'expo-notifications'
 import { api } from '../lib/api'
 import { colors, radius, text } from '../lib/theme'
 
-const STATUS = {
-  confirmada: { cor: colors.greenDim,  txt: colors.green,  icon: 'checkmark-circle', label: 'Confirmada' },
-  pendente:   { cor: colors.amberDim,  txt: colors.amber,  icon: 'time',             label: 'Pendente' },
-  cancelada:  { cor: colors.redDim,    txt: colors.red,    icon: 'close-circle',      label: 'Cancelada' },
-  concluida:  { cor: colors.border,    txt: colors.textDim,icon: 'checkmark-done',    label: 'Concluída' },
-}
-
-const DIAS  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+const DIAS  = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
-function formatarData(iso) {
-  const d = new Date(iso + 'T12:00:00')
-  return `${DIAS[d.getDay()]}, ${d.getDate()} ${MESES[d.getMonth()]}`
+function contagem(data, hora) {
+  const agora = new Date()
+  const [h, m] = hora.split(':').map(Number)
+  const alvo = new Date(data + 'T12:00:00')
+  alvo.setHours(h, m, 0, 0)
+  const diff = alvo - agora
+  if (diff < 0) return null
+  const mins  = Math.floor(diff / 60000)
+  const horas = Math.floor(mins / 60)
+  const dias  = Math.floor(horas / 24)
+  if (dias === 0 && horas === 0) return `em ${mins}m`
+  if (dias === 0) return `em ${horas}h ${mins % 60}m`
+  if (dias === 1) return 'amanhã'
+  return `em ${dias} dias`
 }
 
+function urgencia(data, hora) {
+  const agora = new Date()
+  const [h, m] = hora.split(':').map(Number)
+  const alvo = new Date(data + 'T12:00:00')
+  alvo.setHours(h, m, 0, 0)
+  const horas = (alvo - agora) / 3600000
+  if (horas < 2)  return 'hot'
+  if (horas < 24) return 'warm'
+  return 'cool'
+}
+
+async function agendarLembrete(marcacao) {
+  const { status } = await Notifications.requestPermissionsAsync()
+  if (status !== 'granted') { Alert.alert('Permissão necessária', 'Activa as notificações nas definições.'); return }
+
+  const [h, m] = marcacao.horarios.hora_inicio.split(':').map(Number)
+  const dataAula = new Date(marcacao.data + 'T12:00:00')
+  dataAula.setHours(h, m, 0, 0)
+  const dataLembrete = new Date(dataAula.getTime() - 60 * 60 * 1000) // 1h antes
+
+  if (dataLembrete <= new Date()) { Alert.alert('Tarde demais', 'A aula começa em menos de 1 hora.'); return }
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `🏃 ${marcacao.horarios.nome}`,
+      body: `A tua aula começa em 1 hora — ${marcacao.horarios.hora_inicio.slice(0,5)} em ${marcacao.horarios.locais?.nome}`,
+      sound: true,
+    },
+    trigger: { date: dataLembrete },
+  })
+
+  Alert.alert('✓ Lembrete criado', `Vais receber uma notificação 1 hora antes da aula.`)
+}
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+})
+
 export default function MarcacoesScreen() {
-  const [marcacoes, setMarcacoes] = useState([])
+  const [futuras, setFuturas]     = useState([])
+  const [passadas, setPassadas]   = useState([])
   const [loading, setLoading]     = useState(true)
   const [refresh, setRefresh]     = useState(false)
+  const [verHistorico, setVerHistorico] = useState(false)
 
   const carregar = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefresh(true); else setLoading(true)
-    try { const d = await api.get('/marcacoes/minhas'); setMarcacoes(d) } catch {}
+    try {
+      const d = await api.get('/marcacoes/minhas')
+      const agora = new Date()
+      setFuturas(d.filter(m => m.status !== 'cancelada' && new Date(m.data + 'T23:59:59') >= agora)
+        .sort((a, b) => a.data.localeCompare(b.data)))
+      setPassadas(d.filter(m => m.status === 'cancelada' || new Date(m.data + 'T23:59:59') < agora)
+        .sort((a, b) => b.data.localeCompare(a.data)))
+    } catch {}
     setLoading(false); setRefresh(false)
   }, [])
 
-  useEffect(() => { carregar() }, [])
+  // recarrega sempre que o tab fica em foco
+  useFocusEffect(useCallback(() => { carregar() }, [carregar]))
 
   const cancelar = (id) => Alert.alert('Cancelar aula', 'Tens a certeza?', [
     { text: 'Não', style: 'cancel' },
     { text: 'Cancelar aula', style: 'destructive', onPress: async () => {
       await api.patch(`/marcacoes/${id}`, { status: 'cancelada' })
-      setMarcacoes(prev => prev.map(m => m.id === id ? { ...m, status: 'cancelada' } : m))
+      carregar()
     }}
   ])
-
-  const futuras  = marcacoes.filter(m => m.status !== 'cancelada' && new Date(m.data + 'T23:59:59') >= new Date())
-  const passadas = marcacoes.filter(m => m.status === 'cancelada' || new Date(m.data + 'T23:59:59') < new Date())
-
-  const items = [
-    ...(futuras.length  ? [{ type: 'h', id: 'h1', label: 'Próximas' },  ...futuras.map(m => ({ type: 'm', ...m }))  ] : []),
-    ...(passadas.length ? [{ type: 'h', id: 'h2', label: 'Histórico' }, ...passadas.map(m => ({ type: 'm', ...m })) ] : []),
-  ]
 
   if (loading) return (
     <SafeAreaView style={s.container}>
@@ -59,54 +108,102 @@ export default function MarcacoesScreen() {
     <SafeAreaView style={s.container}>
       <StatusBar barStyle="light-content" />
       <FlatList
-        data={items}
-        keyExtractor={i => i.id}
         contentContainerStyle={s.pad}
         refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => carregar(true)} tintColor={colors.accent} />}
-        ListHeaderComponent={<Text style={[text.h2, { marginBottom: 16 }]}>Marcações</Text>}
-        ListEmptyComponent={
-          <View style={s.vazio}>
-            <View style={s.vazioBg}><Ionicons name="calendar-outline" size={32} color={colors.accent} /></View>
-            <Text style={[text.h3, { marginTop: 16 }]}>Sem marcações</Text>
-            <Text style={[text.body, { marginTop: 4 }]}>As tuas aulas aparecem aqui</Text>
-          </View>
-        }
+        data={[
+          { type: 'header' },
+          ...futuras.map(m => ({ type: 'futura', ...m })),
+          ...(futuras.length === 0 ? [{ type: 'empty_futuras' }] : []),
+          { type: 'historico_btn' },
+          ...(verHistorico ? passadas.map(m => ({ type: 'passada', ...m })) : []),
+        ]}
+        keyExtractor={(item, i) => item.id || item.type + i}
         renderItem={({ item }) => {
-          if (item.type === 'h') return <Text style={[text.label, s.secLabel]}>{item.label}</Text>
-          const cfg = STATUS[item.status] || STATUS.pendente
-          const futura = new Date(item.data + 'T23:59:59') >= new Date()
-          return (
-            <View style={[s.card, { borderLeftColor: cfg.txt, borderLeftWidth: 3 }]}>
-              <View style={s.cardTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={text.h3}>{item.horarios?.nome}</Text>
-                  <Text style={[text.body, { marginTop: 2 }]}>{item.horarios?.locais?.nome}</Text>
-                  <View style={s.horaMeta}>
-                    <Ionicons name="time-outline" size={12} color={colors.textDim} />
-                    <Text style={s.horaTxt}>
-                      {item.horarios?.hora_inicio?.slice(0,5)} – {item.horarios?.hora_fim?.slice(0,5)}
-                    </Text>
-                    {item.horarios?.professores && (
-                      <>
-                        <Text style={s.dotSep}>·</Text>
-                        <Text style={s.horaTxt}>{item.horarios.professores.nome}</Text>
-                      </>
-                    )}
+
+          if (item.type === 'header') return (
+            <View style={s.pageHeader}>
+              <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text, letterSpacing: -0.5 }}>Marcações</Text>
+              <View style={s.badge}>
+                <Text style={s.badgeTxt}>{futuras.length} próximas</Text>
+              </View>
+            </View>
+          )
+
+          if (item.type === 'empty_futuras') return (
+            <View style={s.vazio}>
+              <View style={s.vazioBg}><Ionicons name="calendar-outline" size={28} color={colors.accent} /></View>
+              <Text style={[text.h3, { marginTop: 14 }]}>Sem aulas marcadas</Text>
+              <Text style={[text.body, { marginTop: 4, textAlign: 'center' }]}>
+                Vai ao tab Aulas e marca a tua próxima sessão
+              </Text>
+            </View>
+          )
+
+          if (item.type === 'historico_btn') return passadas.length > 0 ? (
+            <TouchableOpacity style={s.historicoBtn} onPress={() => setVerHistorico(v => !v)}>
+              <Ionicons name={verHistorico ? 'chevron-up' : 'time-outline'} size={16} color={colors.textMed} />
+              <Text style={s.historicoBtnTxt}>{verHistorico ? 'Ocultar histórico' : `Ver histórico (${passadas.length})`}</Text>
+            </TouchableOpacity>
+          ) : null
+
+          // Card de marcação futura
+          if (item.type === 'futura') {
+            const u = urgencia(item.data, item.horarios?.hora_inicio || '00:00')
+            const cnt = contagem(item.data, item.horarios?.hora_inicio || '00:00')
+            const urgCores = {
+              hot:  { bg: '#2d0a0a', accent: colors.red,   txt: colors.red },
+              warm: { bg: '#1a1200', accent: colors.amber,  txt: colors.amber },
+              cool: { bg: colors.accentDim, accent: colors.accent, txt: colors.accent },
+            }
+            const uc = urgCores[u]
+            const d = new Date(item.data + 'T12:00:00')
+
+            return (
+              <View style={[s.card, { borderLeftColor: uc.accent, borderLeftWidth: 3 }]}>
+                {/* Contagem */}
+                <View style={[s.contagem, { backgroundColor: uc.bg }]}>
+                  <Ionicons name="time" size={13} color={uc.accent} />
+                  <Text style={[s.contagemTxt, { color: uc.txt }]}>{cnt}</Text>
+                </View>
+
+                <View style={s.cardBody}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={text.h3}>{item.horarios?.nome}</Text>
+                    <Text style={[text.body, { marginTop: 2 }]}>{item.horarios?.locais?.nome}</Text>
+                    <View style={s.metaRow}>
+                      <Ionicons name="calendar-outline" size={12} color={colors.textDim} />
+                      <Text style={s.metaTxt}>{DIAS[d.getDay()]}, {d.getDate()} {MESES[d.getMonth()]}</Text>
+                      <Text style={s.dot}>·</Text>
+                      <Ionicons name="time-outline" size={12} color={colors.textDim} />
+                      <Text style={s.metaTxt}>{item.horarios?.hora_inicio?.slice(0,5)}</Text>
+                    </View>
                   </View>
                 </View>
-                <View style={[s.badge, { backgroundColor: cfg.cor }]}>
-                  <Ionicons name={cfg.icon} size={12} color={cfg.txt} />
-                  <Text style={[s.badgeTxt, { color: cfg.txt }]}>{cfg.label}</Text>
+
+                <View style={s.cardActions}>
+                  <TouchableOpacity style={s.actionBtn} onPress={() => agendarLembrete(item)}>
+                    <Ionicons name="alarm-outline" size={18} color={colors.accent} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.actionBtn, s.actionBtnDanger]} onPress={() => cancelar(item.id)}>
+                    <Ionicons name="close" size={18} color={colors.red} />
+                  </TouchableOpacity>
                 </View>
               </View>
-              <View style={s.cardBot}>
-                <Text style={text.sm}>{formatarData(item.data)}</Text>
-                {item.status === 'confirmada' && futura && (
-                  <TouchableOpacity onPress={() => cancelar(item.id)} style={s.cancelarBtn}>
-                    <Text style={s.cancelarTxt}>Cancelar</Text>
-                  </TouchableOpacity>
-                )}
+            )
+          }
+
+          // Card de marcação passada/cancelada
+          const cor = item.status === 'cancelada' ? colors.red : colors.textDim
+          const d = new Date(item.data + 'T12:00:00')
+          return (
+            <View style={[s.cardPassada]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[text.h3, { color: colors.textMed }]}>{item.horarios?.nome}</Text>
+                <Text style={s.metaTxtSm}>{DIAS[d.getDay()]}, {d.getDate()} {MESES[d.getMonth()]} · {item.horarios?.hora_inicio?.slice(0,5)}</Text>
               </View>
+              <Text style={[s.statusTxt, { color: cor }]}>
+                {item.status === 'cancelada' ? 'Cancelada' : 'Concluída'}
+              </Text>
             </View>
           )
         }}
@@ -116,19 +213,26 @@ export default function MarcacoesScreen() {
 }
 
 const s = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: colors.bg },
-  pad:        { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 12 },
-  secLabel:   { marginTop: 8, marginBottom: 10, marginLeft: 2 },
-  card:       { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 16, marginBottom: 10, overflow: 'hidden' },
-  cardTop:    { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
-  horaMeta:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-  horaTxt:    { color: colors.textDim, fontSize: 12 },
-  dotSep:     { color: colors.textDim, fontSize: 10 },
-  badge:      { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 5 },
-  badgeTxt:   { fontSize: 11, fontWeight: '600' },
-  cardBot:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
-  cancelarBtn:{ flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cancelarTxt:{ color: colors.red, fontSize: 12, fontWeight: '500' },
-  vazio:      { alignItems: 'center', paddingTop: 60 },
-  vazioBg:    { width: 72, height: 72, backgroundColor: colors.accentDim, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  container:    { flex: 1, backgroundColor: colors.bg },
+  pad:          { paddingHorizontal: 20, paddingBottom: 30, paddingTop: 12 },
+  pageHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  badge:        { backgroundColor: colors.accentDim, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeTxt:     { color: colors.accent, fontSize: 12, fontWeight: '600' },
+  card:         { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.xl, marginBottom: 12, overflow: 'hidden' },
+  contagem:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8 },
+  contagemTxt:  { fontSize: 13, fontWeight: '700' },
+  cardBody:     { flexDirection: 'row', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 8 },
+  metaRow:      { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  metaTxt:      { color: colors.textDim, fontSize: 12 },
+  dot:          { color: colors.textDim, fontSize: 10 },
+  cardActions:  { flexDirection: 'row', gap: 0, borderTopWidth: 1, borderTopColor: colors.border },
+  actionBtn:    { flex: 1, alignItems: 'center', paddingVertical: 12, borderRightWidth: 1, borderRightColor: colors.border },
+  actionBtnDanger: { borderRightWidth: 0 },
+  historicoBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, justifyContent: 'center', marginVertical: 8 },
+  historicoBtnTxt: { color: colors.textMed, fontSize: 14, fontWeight: '500' },
+  cardPassada:  { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card + '80', borderRadius: radius.md, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
+  metaTxtSm:    { color: colors.textDim, fontSize: 12, marginTop: 2 },
+  statusTxt:    { fontSize: 11, fontWeight: '600' },
+  vazio:        { alignItems: 'center', paddingVertical: 40 },
+  vazioBg:      { width: 64, height: 64, backgroundColor: colors.accentDim, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 })
