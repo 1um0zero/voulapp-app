@@ -74,11 +74,16 @@ export default function MarcacoesScreen() {
 
       // buscar previsão para dias futuros com coordenadas
       const primeiroComCoords = fut.find(m => m.horarios?.locais?.lat && m.horarios?.locais?.lng)
+      console.log('[Meteo] primeiro com coords:', primeiroComCoords?.horarios?.locais)
       if (primeiroComCoords) {
         const { lat, lng } = primeiroComCoords.horarios.locais
         const datas = [...new Set(fut.map(m => m.data))]
+        console.log('[Meteo] buscando para datas:', datas, 'lat:', lat, 'lng:', lng)
         const prev = await buscarPrevisaoDias(lat, lng, datas)
+        console.log('[Meteo] previsao:', JSON.stringify(prev))
         setPrevisao(prev)
+      } else {
+        console.log('[Meteo] nenhum local com coordenadas. Locais:', fut.map(m => m.horarios?.locais?.nome + ' lat:' + m.horarios?.locais?.lat))
       }
     } catch {}
     setLoading(false); setRefresh(false)
