@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { api } from '../lib/api'
 import { colors, radius, text } from '../lib/theme'
+import { buscarPrevisaoDias } from '../lib/tempo'
 
 const DIAS  = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
@@ -52,10 +53,11 @@ function agendarLembrete(marcacao) {
 }
 
 export default function MarcacoesScreen() {
-  const [futuras, setFuturas]     = useState([])
-  const [passadas, setPassadas]   = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [refresh, setRefresh]     = useState(false)
+  const [futuras, setFuturas]       = useState([])
+  const [passadas, setPassadas]     = useState([])
+  const [previsao, setPrevisao]     = useState({})
+  const [loading, setLoading]       = useState(true)
+  const [refresh, setRefresh]       = useState(false)
   const [verHistorico, setVerHistorico] = useState(false)
 
   const carregar = useCallback(async (isRefresh = false) => {
@@ -63,10 +65,21 @@ export default function MarcacoesScreen() {
     try {
       const d = await api.get('/marcacoes/minhas')
       const agora = new Date()
-      setFuturas(d.filter(m => m.status !== 'cancelada' && new Date(m.data + 'T23:59:59') >= agora)
-        .sort((a, b) => a.data.localeCompare(b.data)))
-      setPassadas(d.filter(m => m.status === 'cancelada' || new Date(m.data + 'T23:59:59') < agora)
-        .sort((a, b) => b.data.localeCompare(a.data)))
+      const fut = d.filter(m => m.status !== 'cancelada' && new Date(m.data + 'T23:59:59') >= agora)
+        .sort((a, b) => a.data.localeCompare(b.data))
+      const pas = d.filter(m => m.status === 'cancelada' || new Date(m.data + 'T23:59:59') < agora)
+        .sort((a, b) => b.data.localeCompare(a.data))
+      setFuturas(fut)
+      setPassadas(pas)
+
+      // buscar previsão para dias futuros com coordenadas
+      const primeiroComCoords = fut.find(m => m.horarios?.locais?.lat && m.horarios?.locais?.lng)
+      if (primeiroComCoords) {
+        const { lat, lng } = primeiroComCoords.horarios.locais
+        const datas = [...new Set(fut.map(m => m.data))]
+        const prev = await buscarPrevisaoDias(lat, lng, datas)
+        setPrevisao(prev)
+      }
     } catch {}
     setLoading(false); setRefresh(false)
   }, [])
@@ -94,15 +107,49 @@ export default function MarcacoesScreen() {
       <FlatList
         contentContainerStyle={s.pad}
         refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => carregar(true)} tintColor={colors.accent} />}
-        data={[
-          { type: 'header' },
-          ...futuras.map(m => ({ type: 'futura', ...m })),
-          ...(futuras.length === 0 ? [{ type: 'empty_futuras' }] : []),
-          { type: 'historico_btn' },
-          ...(verHistorico ? passadas.map(m => ({ type: 'passada', ...m })) : []),
-        ]}
+        data={(() => {
+          const itens = [{ type: 'header' }]
+          let ultimaData = null
+          futuras.forEach(m => {
+            if (m.data !== ultimaData) {
+              ultimaData = m.data
+              if (previsao[m.data]) itens.push({ type: 'meteo', id: 'meteo_' + m.data, data: m.data, ...previsao[m.data] })
+            }
+            itens.push({ type: 'futura', ...m })
+          })
+          if (futuras.length === 0) itens.push({ type: 'empty_futuras' })
+          itens.push({ type: 'historico_btn' })
+          return itens
+        })().concat(verHistorico ? passadas.map(m => ({ type: 'passada', ...m })) : [])}
         keyExtractor={(item, i) => item.id || item.type + i}
         renderItem={({ item }) => {
+
+          if (item.type === 'meteo') {
+            const d = new Date(item.data + 'T12:00:00')
+            return (
+              <View style={s.meteoRow}>
+                <Text style={s.meteoData}>
+                  {DIAS[d.getDay()]}, {d.getDate()} {MESES[d.getMonth()]}
+                </Text>
+                <View style={s.meteoPeriodos}>
+                  {item.manha && (
+                    <View style={s.meteoPeriodo}>
+                      <Text style={s.meteoLabel}>manhã</Text>
+                      <Text style={s.meteoIcone}>{item.manha.icone}</Text>
+                      <Text style={s.meteoTemp}>{item.manha.temp}°</Text>
+                    </View>
+                  )}
+                  {item.tarde && (
+                    <View style={s.meteoPeriodo}>
+                      <Text style={s.meteoLabel}>tarde</Text>
+                      <Text style={s.meteoIcone}>{item.tarde.icone}</Text>
+                      <Text style={s.meteoTemp}>{item.tarde.temp}°</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )
+          }
 
           if (item.type === 'header') return (
             <View style={s.pageHeader}>
@@ -198,6 +245,13 @@ export default function MarcacoesScreen() {
 
 const s = StyleSheet.create({
   container:    { flex: 1, backgroundColor: colors.bg },
+  meteoRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 4, marginBottom: 2 },
+  meteoData:    { color: colors.textMed, fontSize: 13, fontWeight: '600' },
+  meteoPeriodos:{ flexDirection: 'row', gap: 14 },
+  meteoPeriodo: { alignItems: 'center', gap: 2 },
+  meteoLabel:   { color: colors.textDim, fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5 },
+  meteoIcone:   { fontSize: 20 },
+  meteoTemp:    { color: colors.textMed, fontSize: 12, fontWeight: '600' },
   pad:          { paddingHorizontal: 20, paddingBottom: 30, paddingTop: 12 },
   pageHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   badge:        { backgroundColor: colors.accentDim, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
