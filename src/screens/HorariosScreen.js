@@ -78,14 +78,22 @@ export default function HorariosScreen({ navigation }) {
   useEffect(() => {
     api.get('/locais').then(setLocais).catch(console.error)
 
-    // saudação motivacional ao abrir
+    // saudação com aniversários ao abrir
     Promise.all([
       api.get('/perfil').catch(() => null),
       api.get('/marcacoes/minhas').catch(() => []),
-    ]).then(([perfil, marcacoes]) => {
-      const saud = saudacao(perfil?.nome)
+      api.get('/aniversarios/proximos').catch(() => []),
+    ]).then(([perfil, marcacoes, aniversarios]) => {
+      const saud  = saudacao(perfil?.nome)
       const motiv = mensagemMotivacional(marcacoes)
-      falar(`${saud} ${motiv}`)
+
+      if (aniversarios?.length > 0) {
+        // falar saudação + primeiro aniversário prioritário
+        const top = aniversarios[0]
+        falar(`${saud} ${top.texto}`)
+      } else {
+        falar(`${saud} ${motiv}`)
+      }
     }).catch(() => falar(saudacao('')))
   }, [])
 
