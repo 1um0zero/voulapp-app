@@ -2,7 +2,7 @@
   "expo": {
     "name": "voulapp",
     "slug": "voulapp-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -13,7 +13,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.voulapp.app"
+      "bundleIdentifier": "com.voulapp.app",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Usa a impressão digital para aceder à app"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +28,9 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "web": {
@@ -35,7 +40,9 @@
       "expo-audio",
       "expo-image-picker",
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      "expo-local-authentication",
+      "expo-speech"
     ],
     "extra": {
       "eas": {
