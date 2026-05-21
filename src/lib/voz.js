@@ -1,4 +1,16 @@
 import * as Speech from 'expo-speech'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+
+const CHAVE_VOZ = 'voz_ativa'
+
+export async function vozEstaAtiva() {
+  const val = await AsyncStorage.getItem(CHAVE_VOZ)
+  return val === null || val === 'true' // activa por defeito
+}
+
+export async function setVozAtiva(valor) {
+  await AsyncStorage.setItem(CHAVE_VOZ, String(valor))
+}
 
 const OPCOES = {
   language: 'pt-BR',
@@ -6,7 +18,9 @@ const OPCOES = {
   rate: 1.05,
 }
 
-export function falar(texto, opcoes = {}) {
+export async function falar(texto, opcoes = {}) {
+  const ativa = await vozEstaAtiva()
+  if (!ativa) return
   Speech.stop()
   Speech.speak(texto, { ...OPCOES, ...opcoes })
 }

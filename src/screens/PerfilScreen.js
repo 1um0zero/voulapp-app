@@ -6,14 +6,18 @@ import * as ImagePicker from 'expo-image-picker'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { colors, radius, text } from '../lib/theme'
+import { vozEstaAtiva, setVozAtiva } from '../lib/voz'
 
 export default function PerfilScreen() {
   const { sair } = useAuth()
   const [perfil, setPerfil]       = useState(null)
   const [form, setForm]           = useState({})
-  const [salvando, setSalv]       = useState(false)
-  const [extraindo, setExtraindo] = useState(false)
+  const [salvando, setSalv]         = useState(false)
+  const [extraindo, setExtraindo]   = useState(false)
   const [uploadFoto, setUploadFoto] = useState(false)
+  const [vozOn, setVozOn]           = useState(true)
+
+  useEffect(() => { vozEstaAtiva().then(setVozOn) }, [])
 
   useEffect(() => {
     api.get('/perfil').then(p => {
@@ -140,6 +144,20 @@ export default function PerfilScreen() {
           />
         </View>
 
+        {/* Toggle voz */}
+        <View style={s.toggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.toggleTitulo}>Notificações por voz</Text>
+            <Text style={s.toggleDesc}>Saudação e meteorologia ao abrir a app</Text>
+          </View>
+          <Switch
+            value={vozOn}
+            onValueChange={async v => { setVozOn(v); await setVozAtiva(v) }}
+            trackColor={{ false: colors.border, true: colors.accent + '80' }}
+            thumbColor={vozOn ? colors.accent : colors.textDim}
+          />
+        </View>
+
         {/* Botão documento */}
         <TouchableOpacity style={s.btnDoc} onPress={extrairDocumento} disabled={extraindo}>
           {extraindo ? <ActivityIndicator color={colors.accent} size="small" /> : (
@@ -257,6 +275,9 @@ const s = StyleSheet.create({
   privacidade:  { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 16, marginBottom: 4 },
   privTitulo:   { color: colors.text, fontSize: 14, fontWeight: '600', marginBottom: 3 },
   privDesc:     { color: colors.textDim, fontSize: 12, lineHeight: 16 },
+  toggleRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 16, marginBottom: 4 },
+  toggleTitulo: { color: colors.text, fontSize: 14, fontWeight: '600', marginBottom: 3 },
+  toggleDesc:   { color: colors.textDim, fontSize: 12, lineHeight: 16 },
   btnGuardar:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: 16, marginTop: 20, shadowColor: colors.accent, shadowOffset: {width:0,height:4}, shadowOpacity: 0.3, shadowRadius: 8 },
   btnGuardarTxt:{ color: '#fff', fontWeight: '700', fontSize: 16 },
 })
