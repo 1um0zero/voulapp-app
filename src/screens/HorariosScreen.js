@@ -166,8 +166,10 @@ export default function HorariosScreen({ navigation }) {
               setLocalId(l.id)
               setAcademiaId(l.academia_id)
               if (l.lat && l.lng) {
-                const tempo = await buscarTempo(l.lat, l.lng)
-                if (tempo) falar(`${l.nome}. Hoje ${tempo.temp} graus e ${tempo.descricao}.`)
+                setTimeout(async () => {
+                  const tempo = await buscarTempo(l.lat, l.lng)
+                  if (tempo) falar(`${l.nome}. Hoje ${tempo.temp} graus e ${tempo.descricao}.`)
+                }, 300)
               }
             }}>
             <View style={s.localIcon}>

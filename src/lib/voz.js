@@ -21,7 +21,9 @@ const OPCOES = {
 export async function falar(texto, opcoes = {}) {
   const ativa = await vozEstaAtiva()
   if (!ativa) return
-  Speech.stop()
+  // só para se já estiver a falar e quisermos interromper explicitamente
+  const aFalar = await Speech.isSpeakingAsync()
+  if (aFalar) Speech.stop()
   Speech.speak(texto, { ...OPCOES, ...opcoes })
 }
 
