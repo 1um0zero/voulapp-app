@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Image, StatusBar, Switch } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -7,6 +7,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { colors, radius, text } from '../lib/theme'
 import { vozEstaAtiva, setVozAtiva } from '../lib/voz'
+import { gpsParaEndereco, pesquisarLugares } from '../lib/localizacao'
 
 export default function PerfilScreen() {
   const { sair } = useAuth()
@@ -16,6 +17,9 @@ export default function PerfilScreen() {
   const [extraindo, setExtraindo]   = useState(false)
   const [uploadFoto, setUploadFoto] = useState(false)
   const [vozOn, setVozOn]           = useState(true)
+  const [gpsLoading, setGpsLoad]    = useState(false)
+  const [sugestoes, setSugestoes]   = useState([])
+  const searchTimer = useRef(null)
 
   useEffect(() => { vozEstaAtiva().then(setVozOn) }, [])
 
@@ -83,6 +87,46 @@ export default function PerfilScreen() {
       Alert.alert('✓ Dados extraídos', 'Revê os dados e guarda o perfil.')
     } catch (e) { Alert.alert('Erro', e.message) }
     setExtraindo(false)
+  }
+
+  const detectarGPS = async () => {
+    setGpsLoad(true)
+    try {
+      const end = await gpsParaEndereco()
+      setForm(f => ({
+        ...f,
+        endereco: end.endereco || f.endereco,
+        numero:   end.numero   || f.numero,
+        bairro:   end.bairro   || f.bairro,
+        cidade:   end.cidade   || f.cidade,
+        estado:   end.estado   || f.estado,
+        cep:      end.cep      || f.cep,
+      }))
+      Alert.alert('📍 Localização detectada', end.descricao?.slice(0, 120))
+    } catch (e) { Alert.alert('Erro', e.message) }
+    setGpsLoad(false)
+  }
+
+  const pesquisarEndereco = (texto) => {
+    clearTimeout(searchTimer.current)
+    if (!texto || texto.length < 3) { setSugestoes([]); return }
+    searchTimer.current = setTimeout(async () => {
+      const res = await pesquisarLugares(texto).catch(() => [])
+      setSugestoes(res.slice(0, 4))
+    }, 600)
+  }
+
+  const selecionarSugestao = (s) => {
+    setForm(f => ({
+      ...f,
+      endereco: s.endereco || f.endereco,
+      numero:   s.numero   || f.numero,
+      bairro:   s.bairro   || f.bairro,
+      cidade:   s.cidade   || f.cidade,
+      estado:   s.estado   || f.estado,
+      cep:      s.cep      || f.cep,
+    }))
+    setSugestoes([])
   }
 
   const guardar = async () => {
@@ -201,8 +245,31 @@ export default function PerfilScreen() {
         {/* Secção endereço */}
         <SecLabel label="Endereço" />
         <View style={s.secao}>
-          <Campo icon="navigate-outline"   label="CEP"    value={form.cep}      onChange={set('cep')}      kb="numeric" />
-          <Sep /><Campo icon="home-outline"  label="Rua"    value={form.endereco} onChange={set('endereco')} />
+          {/* Botão GPS */}
+          <TouchableOpacity style={s.gpsBtn} onPress={detectarGPS} disabled={gpsLoading}>
+            {gpsLoading
+              ? <ActivityIndicator size="small" color={colors.accent} />
+              : <Ionicons name="navigate" size={16} color={colors.accent} />}
+            <Text style={s.gpsBtnTxt}>{gpsLoading ? 'A detectar...' : 'Usar localização actual'}</Text>
+          </TouchableOpacity>
+          <Sep />
+          <Campo icon="navigate-outline" label="CEP" value={form.cep} onChange={set('cep')} kb="numeric" />
+          <Sep />
+          <View>
+            <Campo icon="home-outline" label="Rua / Local" value={form.endereco}
+              onChange={v => { setForm(f => ({ ...f, endereco: v })); pesquisarEndereco(v) }} />
+            {sugestoes.length > 0 && (
+              <View style={s.sugestoesList}>
+                {sugestoes.map((sg, i) => (
+                  <TouchableOpacity key={i} onPress={() => selecionarSugestao(sg)}
+                    style={[s.sugestaoItem, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                    <Ionicons name="location-outline" size={13} color={colors.accent} />
+                    <Text style={s.sugestaoTxt} numberOfLines={2}>{sg.descricao}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
           <Sep />
           <View style={s.row}>
             <View style={{ flex: 1 }}><Campo icon="pin-outline" label="Nº" value={form.numero} onChange={set('numero')} kb="numeric" /></View>
@@ -278,6 +345,11 @@ const s = StyleSheet.create({
   toggleRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 16, marginBottom: 4 },
   toggleTitulo: { color: colors.text, fontSize: 14, fontWeight: '600', marginBottom: 3 },
   toggleDesc:   { color: colors.textDim, fontSize: 12, lineHeight: 16 },
+  gpsBtn:       { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 16 },
+  gpsBtnTxt:    { color: colors.accent, fontSize: 13, fontWeight: '600' },
+  sugestoesList:{ backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border },
+  sugestaoItem: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', padding: 12, paddingHorizontal: 16 },
+  sugestaoTxt:  { color: colors.textMed, fontSize: 12, flex: 1, lineHeight: 17 },
   btnGuardar:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: 16, marginTop: 20, shadowColor: colors.accent, shadowOffset: {width:0,height:4}, shadowOpacity: 0.3, shadowRadius: 8 },
   btnGuardarTxt:{ color: '#fff', fontWeight: '700', fontSize: 16 },
 })
