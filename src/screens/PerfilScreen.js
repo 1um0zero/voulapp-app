@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { colors, radius, text } from '../lib/theme'
 import { vozEstaAtiva, setVozAtiva } from '../lib/voz'
 import { gpsParaEndereco, pesquisarLugares } from '../lib/localizacao'
+import Dependentes from '../components/Dependentes'
 
 export default function PerfilScreen() {
   const { sair } = useAuth()
@@ -279,6 +280,10 @@ export default function PerfilScreen() {
           <Sep /><Campo icon="business-outline" label="Cidade" value={form.cidade} onChange={set('cidade')} />
           <Sep /><Campo icon="flag-outline"     label="UF"     value={form.estado} onChange={set('estado')} ph="SP" />
         </View>
+
+        {/* Dependentes */}
+        <SecLabel label="Família / Dependentes" />
+        <Dependentes />
 
         <TouchableOpacity style={s.btnGuardar} onPress={guardar} disabled={salvando}>
           {salvando ? <ActivityIndicator color="#fff" /> : (
