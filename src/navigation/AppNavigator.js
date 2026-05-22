@@ -50,8 +50,9 @@ function TabNavigator() {
         screenOptions={({ route }) => ({
           ...headerOpts,
           headerShown: true,
+          headerTitle: () => null,
+          headerLeft:  () => null,
           headerRight: () => (
-            // 🎤 Microfone no topo direito — em todos os ecrãs
             <TouchableOpacity onPress={() => setVozVisivel(true)} style={s.headerMic}>
               <Ionicons name="mic" size={20} color={colors.accent} />
             </TouchableOpacity>
