@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as Speech from 'expo-speech'
 import { api } from '../lib/api'
 import { colors, radius, text } from '../lib/theme'
+import { useAuth } from '../contexts/AuthContext'
 
 const ESTADOS = {
   idle:         'idle',
@@ -56,7 +57,15 @@ function interpretarNumero(texto, max) {
   return -1
 }
 
+const DESPEDIDAS = ['fui', 'tchau', 'até', 'saindo', 'adeus', 'sair', 'logout', 'fechar']
+
+function isDespedida(texto) {
+  const t = texto.toLowerCase().trim()
+  return DESPEDIDAS.some(d => t.includes(d))
+}
+
 export default function VozModal({ visivel, onFechar, onConfirmar, localId, data }) {
+  const { sair } = useAuth()
   const [estado, setEstado]           = useState(ESTADOS.idle)
   const [transcricao, setTranscricao] = useState('')
   const [interpretacao, setInterpretacao] = useState(null)
@@ -103,6 +112,14 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' })
       const res = await api.post('/voz/interpretar', { audio_base64: base64, formato: 'm4a' })
       setTranscricao(res.transcricao)
+
+      // detectar despedida antes de processar
+      if (res.transcricao && isDespedida(res.transcricao)) {
+        Speech.speak('Até logo! Bom treino! 💪', { language: 'pt-BR', onDone: () => sair() })
+        fechar()
+        return
+      }
+
       setInterpretacao(res)
       await processarResultado(res)
     } catch (e) {
