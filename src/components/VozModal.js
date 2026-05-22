@@ -72,8 +72,11 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   const [horarios, setHorarios]       = useState([])
   const [horarioSel, setHorarioSel]   = useState(null)
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
-  const pulso = useRef(new Animated.Value(1)).current
-  const timerRef = useRef(null)
+  const pulso      = useRef(new Animated.Value(1)).current
+  const timerRef   = useRef(null)
+  const estadoRef  = useRef(ESTADOS.idle) // ref para evitar stale closure nos timers
+
+  const setEstadoSync = (e) => { estadoRef.current = e; setEstado(e) }
 
   useEffect(() => {
     if (estado === ESTADOS.gravando || estado === ESTADOS.ouvindo) {
@@ -110,7 +113,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     Speech.stop()
     await audioRecorder.prepareToRecordAsync()
     await audioRecorder.record()
-    setEstado(ESTADOS.gravando)
+    setEstadoSync(ESTADOS.gravando)
     setContador(5)
 
     // countdown visual e auto-stop ao fim de 5 segundos
@@ -127,8 +130,8 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
   const pararGravacao = async () => {
     clearInterval(contadorRef.current)
-    if (estado !== ESTADOS.gravando) return
-    setEstado(ESTADOS.processando)
+    if (estadoRef.current !== ESTADOS.gravando) return
+    setEstadoSync(ESTADOS.processando)
     clearTimeout(timerRef.current)
     try {
       await audioRecorder.stop()
@@ -149,7 +152,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
       await processarResultado(res)
     } catch (e) {
       setInterpretacao({ resposta: 'Erro: ' + e.message })
-      setEstado(ESTADOS.resultado)
+      setEstadoSync(ESTADOS.resultado)
     }
   }
 
@@ -178,7 +181,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     }
 
     setHorarios(lista)
-    setEstado(ESTADOS.resultado)
+    setEstadoSync(ESTADOS.resultado)
 
     // ler a lista e ouvir resposta automaticamente
     lerLista(lista, () => {
@@ -190,7 +193,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
   // ── Ouvir resposta (número) ──────────────────────────────────
   const iniciarEscutaResposta = async (lista) => {
-    setEstado(ESTADOS.ouvindo)
+    setEstadoSync(ESTADOS.ouvindo)
     try {
       await audioRecorder.prepareToRecordAsync()
       await audioRecorder.record()
@@ -203,7 +206,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     try {
       await audioRecorder.stop()
       const uri = audioRecorder.uri
-      if (!uri) { setEstado(ESTADOS.resultado); return }
+      if (!uri) { setEstadoSync(ESTADOS.resultado); return }
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' })
       const res = await api.post('/voz/interpretar', { audio_base64: base64, formato: 'm4a' })
       const t = (res.transcricao || '').toLowerCase()
@@ -211,7 +214,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
       // detectar CANCELAR
       if (t.includes('não') || t.includes('nao') || t.includes('cancela')) {
         Speech.speak('Tudo bem, quer procurar outra alternativa?', { language: 'pt-BR',
-          onDone: () => setEstado(ESTADOS.idle)
+          onDone: () => setEstadoSync(ESTADOS.idle)
         })
         return
       }
@@ -222,10 +225,10 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
           confirmarDirecto(lista[0], lista[0]._data)
         } else if (t.trim() === '') {
           // silêncio — deixa a lista visível
-          setEstado(ESTADOS.resultado)
+          setEstadoSync(ESTADOS.resultado)
           Speech.speak('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
         } else {
-          setEstado(ESTADOS.resultado)
+          setEstadoSync(ESTADOS.resultado)
           Speech.speak('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
         }
         return
@@ -236,10 +239,10 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
       if (indice >= 0) {
         confirmarDirecto(lista[indice], lista[indice]._data)
       } else {
-        setEstado(ESTADOS.resultado)
+        setEstadoSync(ESTADOS.resultado)
         Speech.speak('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
       }
-    } catch { setEstado(ESTADOS.resultado) }
+    } catch { setEstadoSync(ESTADOS.resultado) }
   }
 
   // ── Confirmar ──────────────────────────────────────────────
@@ -255,7 +258,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   }
 
   const confirmarDirecto = async (horario, dataAula) => {
-    setEstado(ESTADOS.confirmando)
+    setEstadoSync(ESTADOS.confirmando)
     try {
       await onConfirmar(horario, dataAula)
       const encerramento = mensagemFinal(horario.nome)
@@ -271,7 +274,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   const fechar = () => {
     Speech.stop()
     clearTimeout(timerRef.current)
-    setEstado(ESTADOS.idle)
+    setEstadoSync(ESTADOS.idle)
     setTranscricao('')
     setInterpretacao(null)
     setHorarios([])
