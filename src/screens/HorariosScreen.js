@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Platform, StatusBar } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { api } from '../lib/api'
 import { useLocalStorage } from '../lib/useLocalStorage'
-import { colors, radius, text } from '../lib/theme'
+import { colors, radius, text, gradients } from '../lib/theme'
 import VozModal from '../components/VozModal'
 import ParticipantesModal from '../components/ParticipantesModal'
+import SugestaoCard from '../components/SugestaoCard'
 import { falar, saudacao, mensagemMotivacional } from '../lib/voz'
 import { buscarTempo } from '../lib/tempo'
 
@@ -68,7 +70,9 @@ export default function HorariosScreen({ navigation }) {
   const [loading, setLoading]     = useState(false)
   const [marcando, setMarcando]   = useState(null)
   const [toast, setToast]         = useState(null)
-  const [vozVisivel, setVozVisivel] = useState(false)
+  const [vozVisivel, setVozVisivel]   = useState(false)
+  const [sugestoes, setSugestoes]     = useState([])
+  const [sugestaoIdx, setSugestaoIdx] = useState(0)
 
   const mostrarToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -95,6 +99,17 @@ export default function HorariosScreen({ navigation }) {
         falar(`${saud} ${motiv}`)
       }
     }).catch(() => falar(saudacao('')))
+
+    // sugestões proactivas em background
+    api.get('/sugestoes').then(({ sugestoes: s }) => {
+      if (s?.length) {
+        setSugestoes(s)
+        // falar a primeira sugestão após a saudação
+        setTimeout(() => {
+          if (s[0]?.texto) falar(s[0].texto)
+        }, 4000)
+      }
+    }).catch(() => {})
   }, [])
 
   // meteorologia quando o local é carregado do SecureStore (primeira abertura)
@@ -237,6 +252,23 @@ export default function HorariosScreen({ navigation }) {
                 } catch (e) { mostrarToast(e.message, false) }
               }}
             />
+            {/* Sugestão proactiva */}
+            {sugestoes.length > 0 && sugestaoIdx < sugestoes.length && (
+              <SugestaoCard
+                sugestao={sugestoes[sugestaoIdx]}
+                onIgnorar={() => setSugestaoIdx(i => i + 1)}
+                onAceitar={async (s) => {
+                  if (s.horario_id && s.data) {
+                    try {
+                      await api.post('/marcacoes', { horario_id: s.horario_id, data: s.data })
+                      mostrarToast('✅ Aula marcada!')
+                      setSugestaoIdx(i => i + 1)
+                    } catch (e) { mostrarToast(e.message, false) }
+                  }
+                }}
+              />
+            )}
+
             <CalendarioSemanal dataSel={data} onChange={setData} />
             {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: 20 }} />}
           </>
@@ -303,6 +335,7 @@ export default function HorariosScreen({ navigation }) {
 
 const s = StyleSheet.create({
   container:    { flex: 1, backgroundColor: colors.bg },
+  // nota: fundo com gradiente aplicado via LinearGradient no wrapper
   pad:          { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 12 },
   pageHeader:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   selectorHeader:{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6, marginTop: 16 },

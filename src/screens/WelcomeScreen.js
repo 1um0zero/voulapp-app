@@ -1,57 +1,108 @@
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native'
-import { colors, radius } from '../lib/theme'
+import { useEffect, useRef } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, StatusBar, Animated, Dimensions } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Ionicons } from '@expo/vector-icons'
+import { colors, radius, gradients } from '../lib/theme'
+
+const { width, height } = Dimensions.get('window')
 
 export default function WelcomeScreen({ navigation }) {
+  const pulse   = useRef(new Animated.Value(0.9)).current
+  const fadeIn  = useRef(new Animated.Value(0)).current
+  const slideUp = useRef(new Animated.Value(40)).current
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeIn,  { toValue: 1, duration: 900, useNativeDriver: true }),
+      Animated.timing(slideUp, { toValue: 0, duration: 900, useNativeDriver: true }),
+    ]).start()
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.08, duration: 2000, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.9,  duration: 2000, useNativeDriver: true }),
+      ])
+    ).start()
+  }, [])
+
   return (
-    <View style={s.container}>
+    <LinearGradient colors={gradients.bg} style={s.container}>
       <StatusBar barStyle="light-content" />
 
-      <View style={s.center}>
-        {/* Logótipo */}
-        <View style={s.logoWrap}>
-          <View style={s.logoOuter}>
-            <View style={s.logoInner}>
-              <Text style={s.logoMarca}>v</Text>
-            </View>
-          </View>
-          <View style={s.logoRing1} pointerEvents="none" />
-          <View style={s.logoRing2} pointerEvents="none" />
-        </View>
-
-        <Text style={s.nome}>voulapp</Text>
-        <Text style={s.tagline}>Marca. Treina. Evolui.</Text>
+      {/* Glow de fundo */}
+      <View style={s.glowContainer}>
+        <Animated.View style={[s.glow1, { transform: [{ scale: pulse }] }]} />
+        <Animated.View style={[s.glow2, { transform: [{ scale: pulse }] }]} />
       </View>
 
-      <View style={s.bottom}>
-        <TouchableOpacity style={s.btnPrimary} onPress={() => navigation.navigate('Login')}>
-          <Text style={s.btnPrimaryTxt}>Entrar</Text>
+      <Animated.View style={[s.content, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
+
+        {/* Logo */}
+        <View style={s.logoWrap}>
+          <LinearGradient colors={gradients.accent} style={s.logoBg}>
+            <Text style={s.logoLetra}>v</Text>
+          </LinearGradient>
+          <View style={s.logoRing} />
+        </View>
+
+        <Text style={s.appName}>voulapp</Text>
+        <Text style={s.tagline}>Marca. Treina.{'\n'}Evolui.</Text>
+
+        {/* Badges de funcionalidades */}
+        <View style={s.badges}>
+          {[
+            { icon: 'mic',      label: 'Voz' },
+            { icon: 'flash',    label: 'PIX' },
+            { icon: 'logo-whatsapp', label: 'WhatsApp' },
+            { icon: 'sparkles', label: 'IA' },
+          ].map(({ icon, label }) => (
+            <View key={label} style={s.badge}>
+              <Ionicons name={icon} size={14} color={colors.accent} />
+              <Text style={s.badgeLabel}>{label}</Text>
+            </View>
+          ))}
+        </View>
+
+      </Animated.View>
+
+      {/* Botões */}
+      <Animated.View style={[s.bottom, { opacity: fadeIn }]}>
+        <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.85}>
+          <LinearGradient colors={gradients.accent} style={s.btnPrimary}>
+            <Text style={s.btnPrimaryTxt}>Entrar</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
+          </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.btnSecondary} onPress={() => navigation.navigate('Registar')}>
+        <TouchableOpacity style={s.btnSecondary} onPress={() => navigation.navigate('Registar')} activeOpacity={0.8}>
           <Text style={s.btnSecondaryTxt}>Criar conta</Text>
         </TouchableOpacity>
 
-        <Text style={s.legal}>Ao continuares, aceitas os nossos Termos e Política de Privacidade.</Text>
-      </View>
-    </View>
+        <Text style={s.legal}>Ao continuares, aceitas os Termos e Política de Privacidade.</Text>
+      </Animated.View>
+    </LinearGradient>
   )
 }
 
 const s = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 28 },
-  center:       { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  logoWrap:     { width: 120, height: 120, alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
-  logoOuter:    { width: 80, height: 80, borderRadius: 26, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', shadowColor: colors.accent, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.5, shadowRadius: 24, elevation: 12 },
-  logoInner:    { width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  logoMarca:    { color: '#fff', fontSize: 32, fontWeight: '800', letterSpacing: -1 },
-  logoRing1:    { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 1, borderColor: colors.accent + '30' },
-  logoRing2:    { position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 1, borderColor: colors.accent + '15' },
-  nome:         { fontSize: 36, fontWeight: '800', color: colors.text, letterSpacing: -1.5, marginBottom: 8 },
-  tagline:      { fontSize: 16, color: colors.textMed, letterSpacing: 0.5 },
-  bottom:       { paddingBottom: 52, gap: 12 },
-  btnPrimary:   { backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: 17, alignItems: 'center', shadowColor: colors.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6 },
-  btnPrimaryTxt:{ color: '#fff', fontWeight: '700', fontSize: 16, letterSpacing: 0.3 },
+  container:    { flex: 1 },
+  glowContainer:{ ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  glow1:        { position: 'absolute', width: width * 0.8, height: width * 0.8, borderRadius: width * 0.4, backgroundColor: colors.accentGlow, top: height * 0.1 },
+  glow2:        { position: 'absolute', width: width * 0.6, height: width * 0.6, borderRadius: width * 0.3, backgroundColor: colors.hotGlow, bottom: height * 0.2 },
+  content:      { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  logoWrap:     { alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+  logoBg:       { width: 80, height: 80, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  logoLetra:    { color: '#fff', fontSize: 36, fontWeight: '900', letterSpacing: -2 },
+  logoRing:     { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 1, borderColor: colors.accentGlow },
+  appName:      { fontSize: 42, fontWeight: '900', color: colors.text, letterSpacing: -2, marginBottom: 12 },
+  tagline:      { fontSize: 18, color: colors.textMed, textAlign: 'center', lineHeight: 28, marginBottom: 32 },
+  badges:       { flexDirection: 'row', gap: 10, flexWrap: 'wrap', justifyContent: 'center' },
+  badge:        { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.accentDim, borderWidth: 1, borderColor: colors.border2, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  badgeLabel:   { color: colors.textMed, fontSize: 12, fontWeight: '600' },
+  bottom:       { paddingHorizontal: 28, paddingBottom: 48, gap: 12 },
+  btnPrimary:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: radius.lg, paddingVertical: 18 },
+  btnPrimaryTxt:{ color: '#fff', fontWeight: '800', fontSize: 17, letterSpacing: 0.3 },
   btnSecondary: { borderWidth: 1, borderColor: colors.border2, borderRadius: radius.lg, paddingVertical: 16, alignItems: 'center' },
   btnSecondaryTxt: { color: colors.textMed, fontWeight: '600', fontSize: 15 },
-  legal:        { color: colors.textDim, fontSize: 11, textAlign: 'center', lineHeight: 17, marginTop: 4 },
+  legal:        { color: colors.textDim, fontSize: 11, textAlign: 'center', lineHeight: 16 },
 })
