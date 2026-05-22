@@ -10,6 +10,8 @@ import { colors } from '../lib/theme'
 import VozModal from '../components/VozModal'
 import { useLocalStorage } from '../lib/useLocalStorage'
 
+function EcraVazio() { return null }
+
 import LoginScreen     from '../screens/LoginScreen'
 import RegistarScreen  from '../screens/RegistarScreen'
 import WelcomeScreen   from '../screens/WelcomeScreen'
@@ -89,7 +91,7 @@ function TabNavigator() {
         {/* Sair — último item no rodapé, à direita do Perfil */}
         <Tab.Screen
           name="Sair"
-          component={() => null}
+          component={EcraVazio}
           listeners={{ tabPress: e => { e.preventDefault(); confirmarSair() } }}
           options={{
             tabBarIcon: ({ color }) => <Ionicons name="log-out-outline" size={22} color={colors.red} />,

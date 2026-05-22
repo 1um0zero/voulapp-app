@@ -89,7 +89,16 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   useEffect(() => () => {
     Speech.stop()
     clearTimeout(timerRef.current)
+    clearInterval(contadorRef.current)
   }, [])
+
+  // auto-iniciar gravação quando o modal abre
+  useEffect(() => {
+    if (visivel && estado === ESTADOS.idle) {
+      const t = setTimeout(() => iniciarGravacao(), 400)
+      return () => clearTimeout(t)
+    }
+  }, [visivel])
 
   // ── Gravar com auto-stop ─────────────────────────────────────
   const [contador, setContador] = useState(0)
