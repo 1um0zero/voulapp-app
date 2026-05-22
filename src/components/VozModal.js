@@ -69,12 +69,8 @@ function interpretarNumero(texto, max) {
   return -1
 }
 
-const DESPEDIDAS = ['fui', 'tchau', 'até', 'saindo', 'adeus', 'sair', 'logout', 'fechar']
-
-function isDespedida(texto) {
-  const t = texto.toLowerCase().trim()
-  return DESPEDIDAS.some(d => t.includes(d))
-}
+// despedidas removidas — usar botão Sair no rodapé
+function isDespedida() { return false }
 
 export default function VozModal({ visivel, onFechar, onConfirmar, localId, data }) {
   const { sair } = useAuth()
