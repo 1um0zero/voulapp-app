@@ -172,6 +172,53 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
   const processarResultado = async (res) => {
     const desc = res.descricao_aula?.toLowerCase() || ''
+
+    // ── CANCELAR ──────────────────────────────────────────────
+    if (res.acao === 'cancelar') {
+      try {
+        const minhas = await api.get('/marcacoes/minhas')
+        const agora  = new Date()
+        const futuras = minhas.filter(m =>
+          m.status === 'confirmada' &&
+          new Date(m.data + 'T23:59:59') >= agora &&
+          (!desc || (m.horarios?.nome || '').toLowerCase().includes(desc) || (m.horarios?.modalidades?.nome || '').toLowerCase().includes(desc))
+        )
+
+        if (futuras.length === 0) {
+          setEstadoSync(ESTADOS.resultado)
+          setHorarios([])
+          falarLimpo('Não encontrei nenhuma aula marcada para cancelar com essa descrição.')
+          return
+        }
+
+        if (futuras.length === 1) {
+          const m = futuras[0]
+          await api.patch(`/marcacoes/${m.id}`, { status: 'cancelada' })
+          setEstadoSync(ESTADOS.resultado)
+          falarLimpo(`Cancelei a aula de ${m.horarios?.nome} no dia ${m.data}.`)
+          setInterpretacao({ resposta: `Aula de ${m.horarios?.nome} cancelada.` })
+          setHorarios([])
+          return
+        }
+
+        // múltiplas — mostrar lista para escolher
+        const opcoes = futuras.slice(0, 4).map(m => ({
+          id: m.id, nome: m.horarios?.nome, hora_inicio: m.horarios?.hora_inicio || '', _data: m.data, _cancelar: true
+        }))
+        setHorarios(opcoes)
+        setEstadoSync(ESTADOS.resultado)
+        const listaTxt = opcoes.map((h, i) => `Opção ${i+1}: ${h.nome}, dia ${h._data}.`).join(' ')
+        falarLimpo(`Encontrei ${opcoes.length} aulas marcadas. ${listaTxt} Qual queres cancelar?`, {
+          onDone: () => { if (!canceladoRef.current) iniciarEscutaResposta(opcoes) }
+        })
+        return
+      } catch (e) {
+        setEstadoSync(ESTADOS.resultado)
+        falarLimpo('Erro ao cancelar. Tenta novamente.')
+        return
+      }
+    }
+
     let lista = []
 
     if ((res.acao === 'marcar' || res.acao === 'listar') && localId) {
@@ -274,9 +321,15 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   const confirmarDirecto = async (horario, dataAula) => {
     setEstadoSync(ESTADOS.confirmando)
     try {
-      await onConfirmar(horario, dataAula)
-      const encerramento = mensagemFinal(horario.nome)
-      falarLimpo(`Marquei! ${encerramento}`, { language: 'pt-BR' })
+      if (horario._cancelar) {
+        // é um cancelamento
+        await api.patch(`/marcacoes/${horario.id}`, { status: 'cancelada' })
+        falarLimpo(`Cancelei a aula de ${horario.nome}.`)
+      } else {
+        await onConfirmar(horario, dataAula)
+        const encerramento = mensagemFinal(horario.nome)
+        falarLimpo(`Marquei! ${encerramento}`, { language: 'pt-BR' })
+      }
     } catch {}
     setTimeout(fechar, 2500)
   }
