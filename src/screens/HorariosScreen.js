@@ -10,6 +10,7 @@ import VozModal from '../components/VozModal'
 import ParticipantesModal from '../components/ParticipantesModal'
 import SugestaoCard from '../components/SugestaoCard'
 import { falar, saudacao, mensagemMotivacional } from '../lib/voz'
+import * as Speech from 'expo-speech'
 import { buscarTempo } from '../lib/tempo'
 
 const hoje = () => new Date().toISOString().split('T')[0]
@@ -82,46 +83,49 @@ export default function HorariosScreen({ navigation }) {
   useEffect(() => {
     api.get('/locais').then(setLocais).catch(console.error)
 
-    // saudação com aniversários ao abrir
+    // saudação → meteorologia → sugestão (encadeadas com onDone)
     Promise.all([
       api.get('/perfil').catch(() => null),
       api.get('/marcacoes/minhas').catch(() => []),
       api.get('/aniversarios/proximos').catch(() => []),
-    ]).then(([perfil, marcacoes, aniversarios]) => {
+      api.get('/sugestoes').catch(() => ({ sugestoes: [] })),
+    ]).then(([perfil, marcacoes, aniversarios, { sugestoes: sugs }]) => {
+      if (sugs?.length) setSugestoes(sugs)
+
       const saud  = saudacao(perfil?.nome)
       const motiv = mensagemMotivacional(marcacoes)
+      const textoSaudacao = aniversarios?.length > 0
+        ? `${saud} ${aniversarios[0].texto}`
+        : `${saud} ${motiv}`
 
-      if (aniversarios?.length > 0) {
-        // falar saudação + primeiro aniversário prioritário
-        const top = aniversarios[0]
-        falar(`${saud} ${top.texto}`)
-      } else {
-        falar(`${saud} ${motiv}`)
-      }
+      // depois da saudação, falar sugestão se houver
+      const onDepoisSaudacao = sugs?.length
+        ? () => falar(sugs[0].texto)
+        : undefined
+
+      falar(textoSaudacao, { onDone: onDepoisSaudacao })
     }).catch(() => falar(saudacao('')))
-
-    // sugestões proactivas em background
-    api.get('/sugestoes').then(({ sugestoes: s }) => {
-      if (s?.length) {
-        setSugestoes(s)
-        // falar a primeira sugestão após a saudação
-        setTimeout(() => {
-          if (s[0]?.texto) falar(s[0].texto)
-        }, 4000)
-      }
-    }).catch(() => {})
   }, [])
 
-  // meteorologia quando o local é carregado do SecureStore (primeira abertura)
+  // meteorologia quando o local é carregado — encadeada DEPOIS do áudio em curso
   const deuMeteoRef = useRef(false)
   useEffect(() => {
     if (!loadedLocal || !localId || locais.length === 0) return
-    if (deuMeteoRef.current) return // já falou nesta sessão
+    if (deuMeteoRef.current) return
     deuMeteoRef.current = true
     const local = locais.find(l => l.id === localId)
     if (local?.lat && local?.lng) {
-      buscarTempo(local.lat, local.lng).then(tempo => {
-        if (tempo) falar(`${local.nome}. Hoje ${tempo.temp} graus e ${tempo.descricao}.`)
+      buscarTempo(local.lat, local.lng).then(async (tempo) => {
+        if (!tempo) return
+        // esperar que o áudio anterior termine antes de falar a meteorologia
+        const msg = `${local.nome}. Hoje ${tempo.temp} graus e ${tempo.descricao}.`
+        const aFalar = await Speech.isSpeakingAsync?.().catch(() => false)
+        if (aFalar) {
+          // encadear depois do áudio em curso
+          setTimeout(() => falar(msg), 800)
+        } else {
+          falar(msg)
+        }
       })
     }
   }, [loadedLocal, localId, locais])
