@@ -14,9 +14,14 @@ export default function RegistarScreen({ navigation }) {
 
   const criar = async () => {
     setErro(''); setLoading(true)
-    const { error } = await registar(form.email, form.senha, form.nome, form.telefone)
+    const { data, error } = await registar(form.email, form.senha, form.nome, form.telefone)
     setLoading(false)
-    if (error) setErro(error.message)
+    if (error) { setErro(error.message); return }
+    if (data?.user && !data?.session) {
+      // confirmação de email activa — avisar
+      setErro('Conta criada! Confirma o teu email antes de entrar.')
+    }
+    // se session existe, o AuthContext navega automaticamente
   }
 
   const campos = [
@@ -57,7 +62,10 @@ export default function RegistarScreen({ navigation }) {
         </View>
 
         <TouchableOpacity style={[s.btn, loading && { opacity: 0.6 }]} onPress={criar} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnTxt}>Criar conta</Text>}
+          {loading
+            ? <><ActivityIndicator color="#fff" /><Text style={[s.btnTxt, { marginLeft: 8 }]}>A criar conta...</Text></>
+            : <Text style={s.btnTxt}>Criar conta</Text>
+          }
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('Login')} style={s.linkRow}>
