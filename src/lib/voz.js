@@ -18,13 +18,20 @@ const OPCOES = {
   rate: 1.05,
 }
 
+function limparParaVoz(t) {
+  return t
+    .replace(/[\u{1F300}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/[✅❌⚡💳📅📌🕐💰🎉🎂🎈👋🏆🏃💪📱🆕⏳🎊🎙️📊]/g, '')
+    .replace(/\*/g, '').replace(/_/g, '').replace(/#/g, '')
+    .replace(/\s+/g, ' ').trim()
+}
+
 export async function falar(texto, opcoes = {}) {
   const ativa = await vozEstaAtiva()
   if (!ativa) return
-  // só para se já estiver a falar e quisermos interromper explicitamente
   const aFalar = await Speech.isSpeakingAsync()
   if (aFalar) Speech.stop()
-  Speech.speak(texto, { ...OPCOES, ...opcoes })
+  Speech.speak(limparParaVoz(texto), { ...OPCOES, ...opcoes })
 }
 
 export function pararVoz() {

@@ -8,6 +8,17 @@ import { api } from '../lib/api'
 import { colors, radius, text } from '../lib/theme'
 import { useAuth } from '../contexts/AuthContext'
 
+function limpar(t) {
+  return (t || '')
+    .replace(/[\u{1F300}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/[✅❌⚡💳📅📌🕐💰🎉🎂🎈👋🏆🏃💪📱🆕⏳🎊🎙️]/g, '')
+    .replace(/\*/g, '').replace(/\s+/g, ' ').trim()
+}
+
+function falarLimpo(texto, opcoes = {}) {
+  Speech.speak(limpar(texto), { language: 'pt-BR', rate: 0.95, ...opcoes })
+}
+
 const ESTADOS = {
   idle:         'idle',
   gravando:     'gravando',
@@ -19,7 +30,7 @@ const ESTADOS = {
 
 function lerLista(lista, onDone) {
   if (lista.length === 0) {
-    Speech.speak('Não encontrei aulas disponíveis para esse pedido. Quer tentar outra pesquisa?', { language: 'pt-BR', onDone })
+    falarLimpo('Não encontrei aulas disponíveis para esse pedido. Quer tentar outra pesquisa?', { language: 'pt-BR', onDone })
     return
   }
   if (lista.length === 1) {
@@ -28,7 +39,7 @@ function lerLista(lista, onDone) {
       ? new Date(h._data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
       : ''
     const msg = `Encontrei ${h.nome}${dataStr ? ` para ${dataStr}` : ''} às ${h.hora_inicio.slice(0,5)}. Posso marcar?`
-    Speech.speak(msg, { language: 'pt-BR', onDone })
+    falarLimpo(msg, { language: 'pt-BR', onDone })
     return
   }
   const opcoes = lista.slice(0, 5).map((h, i) => {
@@ -37,7 +48,7 @@ function lerLista(lista, onDone) {
       : ''
     return `Opção ${i + 1}: ${h.nome}${dataStr ? `, ${dataStr}` : ''} às ${h.hora_inicio.slice(0,5)}.`
   }).join(' ')
-  Speech.speak(`Encontrei ${lista.length} aulas. ${opcoes} Diz um número para confirmar.`, {
+  falarLimpo(`Encontrei ${lista.length} aulas. ${opcoes} Diz um número para confirmar.`, {
     language: 'pt-BR', rate: 0.95, onDone
   })
 }
@@ -74,7 +85,8 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
   const pulso      = useRef(new Animated.Value(1)).current
   const timerRef   = useRef(null)
-  const estadoRef  = useRef(ESTADOS.idle) // ref para evitar stale closure nos timers
+  const estadoRef    = useRef(ESTADOS.idle)
+  const canceladoRef = useRef(false) // impede callbacks após fechar
 
   const setEstadoSync = (e) => { estadoRef.current = e; setEstado(e) }
 
@@ -95,10 +107,11 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     clearInterval(contadorRef.current)
   }, [])
 
-  // auto-iniciar gravação quando o modal abre
+  // ao abrir — resetar flag de cancelamento e iniciar gravação
   useEffect(() => {
     if (visivel && estado === ESTADOS.idle) {
-      Speech.stop() // parar qualquer áudio imediatamente
+      canceladoRef.current = false
+      Speech.stop()
       const t = setTimeout(() => iniciarGravacao(), 400)
       return () => clearTimeout(t)
     }
@@ -144,7 +157,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
       // detectar despedida antes de processar
       if (res.transcricao && isDespedida(res.transcricao)) {
-        Speech.speak('Até logo! Bom treino! 💪', { language: 'pt-BR', onDone: () => sair() })
+        falarLimpo('Até logo! Bom treino! 💪', { language: 'pt-BR', onDone: () => sair() })
         fechar()
         return
       }
@@ -186,8 +199,8 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
     // ler a lista e ouvir resposta automaticamente
     lerLista(lista, () => {
-      if (lista.length >= 1) {
-        iniciarEscutaResposta(lista) // ouve sempre — sim/não para 1 opção, número para múltiplas
+      if (!canceladoRef.current && lista.length >= 1) {
+        iniciarEscutaResposta(lista)
       }
     })
   }
@@ -214,7 +227,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
       // detectar CANCELAR
       if (t.includes('não') || t.includes('nao') || t.includes('cancela')) {
-        Speech.speak('Tudo bem, quer procurar outra alternativa?', { language: 'pt-BR',
+        falarLimpo('Tudo bem, quer procurar outra alternativa?', { language: 'pt-BR',
           onDone: () => setEstadoSync(ESTADOS.idle)
         })
         return
@@ -227,10 +240,10 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
         } else if (t.trim() === '') {
           // silêncio — deixa a lista visível
           setEstadoSync(ESTADOS.resultado)
-          Speech.speak('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
+          falarLimpo('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
         } else {
           setEstadoSync(ESTADOS.resultado)
-          Speech.speak('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
+          falarLimpo('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
         }
         return
       }
@@ -241,7 +254,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
         confirmarDirecto(lista[indice], lista[indice]._data)
       } else {
         setEstadoSync(ESTADOS.resultado)
-        Speech.speak('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
+        falarLimpo('Vou deixar a lista aqui para poder decidir.', { language: 'pt-BR' })
       }
     } catch { setEstadoSync(ESTADOS.resultado) }
   }
@@ -263,7 +276,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     try {
       await onConfirmar(horario, dataAula)
       const encerramento = mensagemFinal(horario.nome)
-      Speech.speak(`Marquei! ${encerramento}`, { language: 'pt-BR' })
+      falarLimpo(`Marquei! ${encerramento}`, { language: 'pt-BR' })
     } catch {}
     setTimeout(fechar, 2500)
   }
@@ -273,8 +286,10 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   }
 
   const fechar = () => {
+    canceladoRef.current = true
     Speech.stop()
     clearTimeout(timerRef.current)
+    clearInterval(contadorRef.current)
     setEstadoSync(ESTADOS.idle)
     setTranscricao('')
     setInterpretacao(null)
