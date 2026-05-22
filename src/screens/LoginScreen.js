@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../contexts/AuthContext'
 import { colors, radius, text } from '../lib/theme'
@@ -20,14 +20,14 @@ export default function LoginScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}>
       <StatusBar barStyle="light-content" />
 
       <TouchableOpacity style={s.back} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={22} color={colors.textMed} />
       </TouchableOpacity>
 
-      <View style={s.inner}>
+      <ScrollView contentContainerStyle={s.inner} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={s.titulo}>Bem-vindo de volta</Text>
         <Text style={s.sub}>Entra na tua conta para continuar</Text>
 
@@ -63,7 +63,7 @@ export default function LoginScreen({ navigation }) {
           <Text style={s.linkTxt}>Não tens conta? </Text>
           <Text style={s.link}>Cria uma agora</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   )
 }
