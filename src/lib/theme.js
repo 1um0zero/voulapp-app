@@ -1,44 +1,42 @@
+// Tema Solstício — quente, dourado, solar
 export const colors = {
-  // Fundos — gradiente profundo
-  bg:        '#07080f',
-  bgMid:     '#0d0f1a',
-  card:      '#12141f',
-  cardAlt:   '#181a28',
-  border:    '#1e2135',
-  border2:   '#2a2d45',
+  bg:        '#0d0800',
+  bgMid:     '#160e00',
+  card:      '#1f1400',
+  cardAlt:   '#271a00',
+  border:    '#2e1e00',
+  border2:   '#3d2800',
 
-  // Texto
-  text:      '#f4f4ff',
-  textMed:   '#9294b8',
-  textDim:   '#4a4d6e',
+  text:      '#fff8ee',
+  textMed:   '#c4956a',
+  textDim:   '#6b4e2a',
 
-  // Acento principal — violeta vivo
-  accent:    '#7c6ff7',
-  accent2:   '#5b4fe0',
-  accentDim: '#1c1a3a',
-  accentGlow:'rgba(124,111,247,0.25)',
+  // Dourado solar
+  accent:    '#f59e0b',
+  accent2:   '#d97706',
+  accentDim: '#2a1800',
+  accentGlow:'rgba(245,158,11,0.25)',
 
-  // Secundário — magenta quente
-  hot:       '#e040a0',
-  hotDim:    '#2a0a1f',
-  hotGlow:   'rgba(224,64,160,0.2)',
+  // Coral quente
+  hot:       '#f97316',
+  hotDim:    '#2a1000',
+  hotGlow:   'rgba(249,115,22,0.2)',
 
   // Estados
-  green:     '#3dd68c',
-  greenDim:  '#0a2018',
-  red:       '#f05d5d',
+  green:     '#4ade80',
+  greenDim:  '#052e16',
+  red:       '#f87171',
   redDim:    '#2a0a0a',
-  amber:     '#f5a623',
+  amber:     '#fbbf24',
   amberDim:  '#2a1a00',
 }
 
-// Gradientes
 export const gradients = {
-  bg:      ['#07080f', '#0d0f1a', '#130d1f'],
-  card:    ['rgba(28,26,58,0.8)', 'rgba(18,20,31,0.9)'],
-  accent:  ['#7c6ff7', '#5b4fe0', '#3a2fb8'],
-  hot:     ['#e040a0', '#9b28c0'],
-  hero:    ['#1c1a3a', '#0d0f1a'],
+  bg:      ['#0d0800', '#160e00', '#1a1000'],
+  card:    ['rgba(42,24,0,0.8)', 'rgba(31,20,0,0.9)'],
+  accent:  ['#f59e0b', '#d97706', '#b45309'],
+  hot:     ['#f97316', '#ea580c'],
+  hero:    ['#2a1800', '#160e00'],
 }
 
 export const radius = { sm: 12, md: 16, lg: 20, xl: 26 }
