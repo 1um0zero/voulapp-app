@@ -11,6 +11,7 @@ import RegistarScreen  from '../screens/RegistarScreen'
 import WelcomeScreen    from '../screens/WelcomeScreen'
 import BiometriaScreen  from '../screens/BiometriaScreen'
 import HorariosScreen  from '../screens/HorariosScreen'
+import EquipaScreen    from '../screens/EquipaScreen'
 import MarcacoesScreen from '../screens/MarcacoesScreen'
 import PlanosScreen    from '../screens/PlanosScreen'
 import PerfilScreen    from '../screens/PerfilScreen'
@@ -47,6 +48,7 @@ function TabNavigator() {
           const icons = {
             Aulas:     focused ? 'calendar' : 'calendar-outline',
             Marcações: focused ? 'checkmark-circle' : 'checkmark-circle-outline',
+            Equipa:    focused ? 'people' : 'people-outline',
             Planos:    focused ? 'layers' : 'layers-outline',
             Perfil:    focused ? 'person-circle' : 'person-circle-outline',
           }
@@ -56,6 +58,7 @@ function TabNavigator() {
     >
       <Tab.Screen name="Aulas"     component={HorariosScreen} />
       <Tab.Screen name="Marcações" component={MarcacoesScreen} />
+      <Tab.Screen name="Equipa"    component={EquipaScreen} />
       <Tab.Screen name="Planos"    component={PlanosScreen} />
       <Tab.Screen name="Perfil"    component={PerfilScreen} />
     </Tab.Navigator>
