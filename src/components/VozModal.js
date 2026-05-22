@@ -98,6 +98,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
   // auto-iniciar gravação quando o modal abre
   useEffect(() => {
     if (visivel && estado === ESTADOS.idle) {
+      Speech.stop() // parar qualquer áudio imediatamente
       const t = setTimeout(() => iniciarGravacao(), 400)
       return () => clearTimeout(t)
     }
