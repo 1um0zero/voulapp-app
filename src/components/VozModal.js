@@ -7,6 +7,7 @@ import * as Speech from 'expo-speech'
 import { api } from '../lib/api'
 import { colors, radius, text } from '../lib/theme'
 import { useAuth } from '../contexts/AuthContext'
+import { setModoGravacao } from '../lib/voz'
 
 function limpar(t) {
   return (t || '')
@@ -107,11 +108,11 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     clearInterval(contadorRef.current)
   }, [])
 
-  // ao abrir — resetar flag de cancelamento e iniciar gravação
+  // ao abrir — bloquear audio externo e iniciar gravação
   useEffect(() => {
     if (visivel && estado === ESTADOS.idle) {
       canceladoRef.current = false
-      Speech.stop()
+      setModoGravacao(true)   // bloqueia falar() globalmente
       const t = setTimeout(() => iniciarGravacao(), 400)
       return () => clearTimeout(t)
     }
@@ -356,6 +357,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
   const fechar = () => {
     canceladoRef.current = true
+    setModoGravacao(false)   // volta a permitir falar()
     Speech.stop()
     clearTimeout(timerRef.current)
     clearInterval(contadorRef.current)

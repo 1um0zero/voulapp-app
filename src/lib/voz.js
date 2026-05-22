@@ -18,6 +18,13 @@ const OPCOES = {
   rate: 1.05,
 }
 
+// flag global — bloqueia falar durante gravação
+let _modoGravacao = false
+export function setModoGravacao(ativo) {
+  _modoGravacao = ativo
+  if (ativo) Speech.stop()
+}
+
 function limparParaVoz(t) {
   return t
     .replace(/[\u{1F300}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '')
@@ -27,6 +34,7 @@ function limparParaVoz(t) {
 }
 
 export async function falar(texto, opcoes = {}) {
+  if (_modoGravacao) return  // silêncio durante gravação
   const ativa = await vozEstaAtiva()
   if (!ativa) return
   const aFalar = await Speech.isSpeakingAsync()
