@@ -91,7 +91,10 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     clearTimeout(timerRef.current)
   }, [])
 
-  // ── Gravar comando inicial ──────────────────────────────────
+  // ── Gravar com auto-stop ─────────────────────────────────────
+  const [contador, setContador] = useState(0)
+  const contadorRef = useRef(null)
+
   const iniciarGravacao = async () => {
     const { granted } = await AudioModule.requestRecordingPermissionsAsync()
     if (!granted) return
@@ -99,9 +102,22 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     await audioRecorder.prepareToRecordAsync()
     await audioRecorder.record()
     setEstado(ESTADOS.gravando)
+    setContador(5)
+
+    // countdown visual e auto-stop ao fim de 5 segundos
+    let restante = 5
+    contadorRef.current = setInterval(() => {
+      restante -= 1
+      setContador(restante)
+      if (restante <= 0) {
+        clearInterval(contadorRef.current)
+        pararGravacao()
+      }
+    }, 1000)
   }
 
   const pararGravacao = async () => {
+    clearInterval(contadorRef.current)
     if (estado !== ESTADOS.gravando) return
     setEstado(ESTADOS.processando)
     clearTimeout(timerRef.current)
@@ -280,15 +296,16 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
           {/* GRAVANDO */}
           {estado === ESTADOS.gravando && (
             <View style={s.center}>
-              <Animated.View style={[s.micBtnRed, { transform: [{ scale: pulso }] }]}>
-                <Ionicons name="mic" size={36} color="#fff" />
-              </Animated.View>
+              <View style={s.countdownWrap}>
+                <Animated.View style={[s.micBtnRed, { transform: [{ scale: pulso }] }]}>
+                  <Ionicons name="mic" size={36} color="#fff" />
+                </Animated.View>
+                <View style={s.countdownBadge}>
+                  <Text style={s.countdownTxt}>{contador}</Text>
+                </View>
+              </View>
               <Text style={[text.h3, { marginTop: 20, color: colors.red }]}>A ouvir...</Text>
-              <Text style={[text.body, { marginTop: 4, marginBottom: 24 }]}>Fala agora</Text>
-              <TouchableOpacity style={s.pararBtn} onPress={pararGravacao}>
-                <Ionicons name="stop-circle" size={18} color="#fff" />
-                <Text style={s.pararTxt}>Parar</Text>
-              </TouchableOpacity>
+              <Text style={[text.body, { marginTop: 4 }]}>Fala agora — para em {contador}s</Text>
             </View>
           )}
 
@@ -390,6 +407,9 @@ const s = StyleSheet.create({
   center:       { alignItems: 'center', paddingVertical: 12 },
   micBtn:       { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', shadowColor: colors.accent, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8 },
   micBtnRed:    { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center' },
+  countdownWrap:{ position: 'relative' },
+  countdownBadge:{ position: 'absolute', top: -6, right: -6, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.bg, borderWidth: 2, borderColor: colors.red, alignItems: 'center', justifyContent: 'center' },
+  countdownTxt: { color: colors.red, fontWeight: '800', fontSize: 13 },
   micBtnAccent: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   micHint:      { color: colors.textDim, fontSize: 13, marginTop: 12 },
   pararBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.red, borderRadius: radius.lg, paddingHorizontal: 28, paddingVertical: 13 },

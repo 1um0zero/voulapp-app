@@ -235,23 +235,7 @@ export default function HorariosScreen({ navigation }) {
                   <Ionicons name="chevron-down" size={12} color={colors.accent} />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={s.micFab} onPress={() => setVozVisivel(true)}>
-                <Ionicons name="mic" size={22} color="#fff" />
-              </TouchableOpacity>
             </View>
-            <VozModal
-              visivel={vozVisivel}
-              onFechar={() => setVozVisivel(false)}
-              localId={localId}
-              data={data}
-              onConfirmar={async (horario, dataAula) => {
-                try {
-                  await api.post('/marcacoes', { horario_id: horario.id, data: dataAula })
-                  mostrarToast(`✓ ${horario.nome} marcado!`)
-                  setData(dataAula) // dispara o useEffect que recarrega os horários
-                } catch (e) { mostrarToast(e.message, false) }
-              }}
-            />
             {/* Sugestão proactiva */}
             {sugestoes.length > 0 && sugestaoIdx < sugestoes.length && (
               <SugestaoCard

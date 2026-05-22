@@ -6,7 +6,7 @@ import { createStackNavigator } from '@react-navigation/stack'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../contexts/AuthContext'
-import { colors, gradients } from '../lib/theme'
+import { colors } from '../lib/theme'
 import VozModal from '../components/VozModal'
 import { useLocalStorage } from '../lib/useLocalStorage'
 
@@ -42,23 +42,31 @@ function TabNavigator() {
     { text: 'Sair', style: 'destructive', onPress: sair }
   ])
 
+  const tabBarH = 54 + Math.max(insets.bottom, 8)
+
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           ...headerOpts,
-          headerShown: false,
+          headerShown: true,
+          headerRight: () => (
+            // 🎤 Microfone no topo direito — em todos os ecrãs
+            <TouchableOpacity onPress={() => setVozVisivel(true)} style={s.headerMic}>
+              <Ionicons name="mic" size={20} color={colors.accent} />
+            </TouchableOpacity>
+          ),
           tabBarStyle: {
             backgroundColor: colors.card,
             borderTopColor: colors.border,
             borderTopWidth: 1,
             paddingTop: 8,
             paddingBottom: Math.max(insets.bottom, 8),
-            height: 54 + Math.max(insets.bottom, 8),
+            height: tabBarH,
           },
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textDim,
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+          tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: 2 },
           tabBarIcon: ({ focused, color }) => {
             const icons = {
               Aulas:     focused ? 'calendar' : 'calendar-outline',
@@ -66,8 +74,9 @@ function TabNavigator() {
               Equipa:    focused ? 'people' : 'people-outline',
               Planos:    focused ? 'layers' : 'layers-outline',
               Perfil:    focused ? 'person-circle' : 'person-circle-outline',
+              '':        'log-out-outline',
             }
-            return <Ionicons name={icons[route.name]} size={24} color={color} />
+            return <Ionicons name={icons[route.name] || 'log-out-outline'} size={22} color={color} />
           },
         })}
       >
@@ -76,20 +85,19 @@ function TabNavigator() {
         <Tab.Screen name="Equipa"    component={EquipaScreen} />
         <Tab.Screen name="Planos"    component={PlanosScreen} />
         <Tab.Screen name="Perfil"    component={PerfilScreen} />
+        {/* Sair — último item no rodapé, à direita do Perfil */}
+        <Tab.Screen
+          name="Sair"
+          component={() => null}
+          listeners={{ tabPress: e => { e.preventDefault(); confirmarSair() } }}
+          options={{
+            tabBarIcon: ({ color }) => <Ionicons name="log-out-outline" size={22} color={colors.red} />,
+            tabBarLabel: 'Sair',
+            tabBarLabelStyle: { fontSize: 10, fontWeight: '600', color: colors.red },
+            headerShown: false,
+          }}
+        />
       </Tab.Navigator>
-
-      {/* Botões persistentes — aparecem em todos os ecrãs */}
-      <View style={[s.floatingBar, { bottom: 54 + Math.max(insets.bottom, 8) + 12 }]}>
-        {/* Microfone global — inclui "fui" para sair */}
-        <TouchableOpacity style={s.fabMic} onPress={() => setVozVisivel(true)} activeOpacity={0.85}>
-          <Ionicons name="mic" size={20} color="#fff" />
-        </TouchableOpacity>
-
-        {/* Logout */}
-        <TouchableOpacity style={s.fabSair} onPress={confirmarSair} activeOpacity={0.85}>
-          <Ionicons name="log-out-outline" size={20} color={colors.red} />
-        </TouchableOpacity>
-      </View>
 
       <VozModal
         visivel={vozVisivel}
@@ -132,7 +140,5 @@ export default function AppNavigator() {
 }
 
 const s = StyleSheet.create({
-  floatingBar: { position: 'absolute', right: 16, flexDirection: 'column', gap: 10, alignItems: 'center' },
-  fabMic:      { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
-  fabSair:     { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.redDim, borderWidth: 1, borderColor: colors.red + '40', alignItems: 'center', justifyContent: 'center' },
+  headerMic: { marginRight: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accentDim, alignItems: 'center', justifyContent: 'center' },
 })
