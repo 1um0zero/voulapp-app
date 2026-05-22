@@ -252,13 +252,29 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
     })
   }
 
-  // ── Ouvir resposta (número) ──────────────────────────────────
+  // ── Ouvir resposta com countdown (mesmo visual do modal inicial) ──
   const iniciarEscutaResposta = async (lista) => {
+    if (canceladoRef.current) return
+    // delay para deixar o eco de áudio dissipar
+    await new Promise(r => setTimeout(r, 600))
+    if (canceladoRef.current) return
+
     setEstadoSync(ESTADOS.ouvindo)
+    setContador(6)
+
     try {
       await audioRecorder.prepareToRecordAsync()
       await audioRecorder.record()
-      timerRef.current = setTimeout(() => pararEscuta(lista), 4000)
+
+      let restante = 6
+      contadorRef.current = setInterval(() => {
+        restante -= 1
+        setContador(restante)
+        if (restante <= 0) {
+          clearInterval(contadorRef.current)
+          pararEscuta(lista)
+        }
+      }, 1000)
     } catch {}
   }
 
@@ -282,7 +298,7 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
 
       // 1 opção — detectar SIM/OK
       if (lista.length === 1) {
-        if (t.includes('sim') || t.includes('ok') || t.includes('marca') || t.includes('confirma') || t.includes('claro') || t.includes('vai')) {
+        if (t.includes('sim') || t.includes('ok') || t.includes('marca') || t.includes('confirma') || t.includes('claro') || t.includes('vai') || t.includes('por favor') || t.includes('pode') || t.includes('quero') || t.includes('manda')) {
           confirmarDirecto(lista[0], lista[0]._data)
         } else if (t.trim() === '') {
           // silêncio — deixa a lista visível
@@ -400,17 +416,22 @@ export default function VozModal({ visivel, onFechar, onConfirmar, localId, data
             </View>
           )}
 
-          {/* OUVINDO RESPOSTA */}
+          {/* OUVINDO RESPOSTA — mesmo visual do gravando */}
           {estado === ESTADOS.ouvindo && (
             <View style={s.center}>
-              <Animated.View style={[s.micBtnAccent, { transform: [{ scale: pulso }] }]}>
-                <Ionicons name="ear" size={32} color="#fff" />
-              </Animated.View>
-              <Text style={[text.h3, { marginTop: 20 }]}>A ouvir...</Text>
+              <View style={s.countdownWrap}>
+                <Animated.View style={[s.micBtnRed, { transform: [{ scale: pulso }] }]}>
+                  <Ionicons name="mic" size={36} color="#fff" />
+                </Animated.View>
+                <View style={s.countdownBadge}>
+                  <Text style={s.countdownTxt}>{contador}</Text>
+                </View>
+              </View>
+              <Text style={[text.h3, { marginTop: 20, color: colors.red }]}>A ouvir...</Text>
               <Text style={[text.body, { marginTop: 4 }]}>
                 {horarios.length === 1
-                  ? 'Diz "sim" para confirmar ou "não" para cancelar'
-                  : 'Diz um número para escolher (4 segundos)'}
+                  ? 'Diz "sim" ou "não"'
+                  : `Diz um número (1 a ${horarios.length})`}
               </Text>
             </View>
           )}
