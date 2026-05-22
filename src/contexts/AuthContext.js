@@ -15,15 +15,26 @@ export function AuthProvider({ children }) {
   const [biometriaOn, setBiometriaOn]     = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
+    const init = async () => {
+      let { data } = await supabase.auth.getSession()
+
+      // se não há sessão mas há refresh token, tentar renovar
+      if (!data.session) {
+        const { data: refreshed } = await supabase.auth.refreshSession()
+        if (refreshed.session) data = refreshed
+      }
+
       setSession(data.session)
+
       if (data.session) {
         const activa = await biometriaActiva()
         setBiometriaOn(activa)
-        if (activa) setBloqueado(true) // tem sessão + biometria → pedir autenticação
+        if (activa) setBloqueado(true)
       }
       setLoading(false)
-    })
+    }
+
+    init()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s))
     return () => subscription.unsubscribe()
   }, [])
