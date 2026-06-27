@@ -24,7 +24,7 @@ export async function desactivarBiometria() {
 
 export async function autenticarComBiometria() {
   const result = await LocalAuthentication.authenticateAsync({
-    promptMessage:   'Aceder ao voulapp',
+    promptMessage:   'Aceder ao voUdeZapp',
     fallbackLabel:   'Usar senha',
     cancelLabel:     'Cancelar',
     disableDeviceFallback: false,

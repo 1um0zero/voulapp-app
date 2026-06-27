@@ -45,7 +45,7 @@ export default function WelcomeScreen({ navigation }) {
           <View style={s.logoRing} />
         </View>
 
-        <Text style={s.appName}>voulapp</Text>
+        <Text style={s.appName}>voUdeZapp</Text>
         <Text style={s.tagline}>Marca. Treina.{'\n'}Evolui.</Text>
 
         {/* Badges de funcionalidades */}

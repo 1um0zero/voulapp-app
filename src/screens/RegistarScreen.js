@@ -41,7 +41,7 @@ export default function RegistarScreen({ navigation }) {
         </TouchableOpacity>
 
         <Text style={[text.h1, { marginBottom: 6 }]}>Criar conta</Text>
-        <Text style={[text.body, { marginBottom: 32 }]}>Junta-te ao voulapp hoje</Text>
+        <Text style={[text.body, { marginBottom: 32 }]}>Junta-te ao voUdeZapp hoje</Text>
 
         {!!erro && (
           <View style={s.erroBox}>

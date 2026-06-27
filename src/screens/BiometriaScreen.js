@@ -17,7 +17,7 @@ export default function BiometriaScreen() {
       <View style={s.logo}>
         <Text style={s.logoLetra}>v</Text>
       </View>
-      <Text style={s.titulo}>voulapp</Text>
+      <Text style={s.titulo}>voUdeZapp</Text>
       <Text style={s.sub}>Confirma a tua identidade para continuar</Text>
 
       <TouchableOpacity style={s.btn} onPress={desbloquear}>
